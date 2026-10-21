@@ -1,0 +1,4698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Opened from the iPhone Home Screen it runs full screen, without Safari bars. -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#000000" />
+  <title>Peggy Makeover</title>
+  <!-- All styles and scripts are inlined: this one file is the whole prototype (images stay in assets/). -->
+  <style>
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * Stage = iPhone screen in landscape (2868×1320, ratio 2.1727); the frame is
+ * styled after iPhone 14 (corner radius, notch).
+ * The game is laid out at a fixed design size (1300×598) and the whole stage
+ * is scaled with --stage-scale to fit the phone screen, so every icon, HUD
+ * element, VFX and number keeps its proportions on any display.
+ * --stage-scale and --screen-w are set by the fit script in index.html.
+ */
+:root {
+  --stage-w: 1300px;
+  --stage-h: 598px;
+  --stage-scale: 1;
+  --screen-w: 1300px;
+
+  --titan-hi: #9aa0a8;
+  --titan-mid: #4a4e55;
+  --titan-lo: #1c1e21;
+  --page-bg-1: #262b33;
+  --page-bg-2: #0d0f13;
+  --btn-bg: #ffffff;
+  --btn-fg: #1b1e24;
+  --btn-active-bg: #ffb300;
+  --btn-active-fg: #2a1a00;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 40%, var(--page-bg-1), var(--page-bg-2));
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.viewport {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(14px, 2.4vh, 28px);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* ---------- iPhone 17 Pro Max body, landscape ---------- */
+.iphone {
+  --bezel: calc(var(--screen-w) * 0.017);
+  position: relative;
+  flex: none;
+  padding: var(--bezel);
+  /* iPhone 14: screen corner radius + bezel (less rounded than before) */
+  border-radius: calc(var(--screen-w) * 0.073);
+  background: #050506;
+  /* Titanium band around the glass */
+  box-shadow:
+    0 0 0 calc(var(--screen-w) * 0.0022) var(--titan-hi),
+    0 0 0 calc(var(--screen-w) * 0.0045) var(--titan-mid),
+    0 0 0 calc(var(--screen-w) * 0.0055) var(--titan-lo),
+    0 calc(var(--screen-w) * 0.02) calc(var(--screen-w) * 0.05) rgba(0, 0, 0, 0.55);
+}
+
+/* Side buttons: the top of the phone points left, so the volume side is
+   along the bottom edge and the power / camera side along the top edge. */
+.iphone-btn {
+  position: absolute;
+  height: calc(var(--screen-w) * 0.0035);
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--titan-hi), var(--titan-mid), var(--titan-lo));
+}
+.iphone-btn.action { bottom: calc(var(--screen-w) * -0.0085); left: 16%; width: 3.4%; }
+.iphone-btn.vol-up { bottom: calc(var(--screen-w) * -0.0085); left: 22%; width: 6.4%; }
+.iphone-btn.vol-dn { bottom: calc(var(--screen-w) * -0.0085); left: 30%; width: 6.4%; }
+.iphone-btn.power  { top: calc(var(--screen-w) * -0.0085); left: 24%; width: 9.5%; }
+.iphone-btn.camera { top: calc(var(--screen-w) * -0.0085); left: 60%; width: 4.8%; }
+
+/* ---------- Screen ---------- */
+.device {
+  position: relative;
+  width: var(--screen-w);
+  /* same ratio as the design stage, so the scaled stage fills it exactly */
+  height: calc(var(--screen-w) * 598 / 1300);
+  /* iPhone 14 display corner radius ≈ 47pt on an 844pt-wide screen */
+  border-radius: calc(var(--screen-w) * 0.056);
+  overflow: hidden;
+  background: #000;
+}
+
+/*
+ * iPhone 14 notch, on the left edge in landscape (the top of the phone points
+ * left). Real proportions: ~162pt long and ~33pt deep on a 390×844pt screen,
+ * with rounded inner corners and small concave fillets where it meets the
+ * screen edge. Purely decorative.
+ */
+.notch {
+  --notch-len: calc(var(--screen-w) * 0.191);
+  --notch-depth: calc(var(--screen-w) * 0.039);
+  --notch-r: calc(var(--screen-w) * 0.021);
+  --notch-fillet: calc(var(--screen-w) * 0.008);
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: var(--notch-depth);
+  height: var(--notch-len);
+  transform: translateY(-50%);
+  border-radius: 0 var(--notch-r) var(--notch-r) 0;
+  background: #050506;
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* Concave fillets that blend the notch into the screen edge. */
+.notch::before,
+.notch::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: var(--notch-fillet);
+  height: var(--notch-fillet);
+}
+.notch::before {
+  bottom: 100%;
+  background: radial-gradient(
+    circle at 100% 0,
+    transparent calc(var(--notch-fillet) - 0.5px),
+    #050506 var(--notch-fillet)
+  );
+}
+.notch::after {
+  top: 100%;
+  background: radial-gradient(
+    circle at 100% 100%,
+    transparent calc(var(--notch-fillet) - 0.5px),
+    #050506 var(--notch-fillet)
+  );
+}
+
+/* Earpiece slot and front camera inside the notch. */
+.notch-speaker {
+  position: absolute;
+  left: 38%;
+  top: 50%;
+  width: calc(var(--screen-w) * 0.0032);
+  height: calc(var(--screen-w) * 0.042);
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: #1c1d20;
+}
+.notch-camera {
+  position: absolute;
+  left: 42%;
+  top: 22%;
+  width: calc(var(--screen-w) * 0.0085);
+  height: calc(var(--screen-w) * 0.0085);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #3b4a6b 0%, #141a28 45%, #08090c 70%);
+}
+
+/* Debug controls, outside the phone screen: oval pills that scale with the window. */
+.controls {
+  display: flex;
+  /* wider spacing between the pills; pushed 30px further below the phone */
+  gap: clamp(18px, 2.6vw, 36px);
+  margin-top: 30px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.control-btn {
+  appearance: none;
+  /* 20% larger than before */
+  padding: clamp(9.6px, 1.32vw, 16.8px) clamp(21.6px, 2.88vw, 38.4px);
+  border: 0;
+  border-radius: 999px;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: clamp(14.4px, 1.44vw, 20.4px);
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.12s ease, background-color 0.15s ease;
+}
+
+.control-btn:hover {
+  transform: translateY(-1px);
+}
+
+.control-btn:active {
+  transform: scale(0.97);
+}
+
+.control-btn.is-active {
+  background: var(--btn-active-bg);
+  color: var(--btn-active-fg);
+}
+
+.control-btn:focus-visible {
+  outline: 3px solid #7fb8ff;
+  outline-offset: 3px;
+}
+
+/* Fixed design size, scaled to fill the phone screen. */
+.stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--stage-w);
+  height: var(--stage-h);
+  transform: scale(var(--stage-scale));
+  transform-origin: 0 0;
+  overflow: hidden;
+  background: #000;
+  user-select: none;
+}
+
+/* Opened on a real phone: no mock-up, the game fills the screen. */
+.is-bare .viewport {
+  padding: 0;
+}
+.is-bare .iphone {
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.is-bare .iphone-btn,
+.is-bare .notch {
+  display: none;
+}
+.is-bare .device {
+  border-radius: 0;
+}
+.is-bare .controls {
+  margin-top: 0;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+  z-index: 200;
+  gap: 6px;
+}
+.is-bare .control-btn {
+  padding: 6px 12px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-btn {
+    transition: none;
+  }
+}
+
+.play-area {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.hud-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  --hud-btn-h: 68px;
+}
+
+/* Header.png over Milestones_Bar1.png, centered near the top.
+   Box matches the two pictures at the same scale: title 774×115, bar 1060×279. */
+.hud-top-wrap {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 161px;
+  width: auto;
+  aspect-ratio: 1060 / 394;
+  max-width: 92%;
+  line-height: 0;
+  container-type: size;
+}
+
+.hud-top {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center top;
+  display: block;
+  pointer-events: none;
+}
+
+/*
+ * Two pictures stacked in one 1060×394 box, same scale as the source files:
+ *   Header.png           (774×115) — "Peggy Makeover" title, top, centred
+ *   Milestones_Bar1.png  (1060×279) — the panel, full box width, under the title
+ * 115/394 of the box is the title, 279/394 is the panel.
+ */
+.hud-top-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.hud-title {
+  display: block;
+  height: 29.2%;
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: 774 / 115;
+  flex: none;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  position: relative;
+  z-index: 1;
+}
+.hud-milestones {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* keeps the picture's own proportions; never taller than the space under the title */
+  max-height: 70.8%;
+  flex: none;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Info button: left corner, 30px from left, 68px tall. */
+.hud-info {
+  position: absolute;
+  top: 20px;
+  left: 30px;
+  height: var(--hud-btn-h);
+  width: auto;
+  aspect-ratio: 70 / 73;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  line-height: 0;
+  z-index: 11;
+}
+
+.hud-info img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+
+/* EventSkuMeter: 30px right of info, 68px tall. */
+.hud-meter {
+  position: absolute;
+  top: 10px;
+  left: calc(30px + var(--hud-btn-h) * 70 / 73 + 10px);
+  height: var(--hud-btn-h);
+  width: auto;
+  aspect-ratio: 254 / 149;
+  object-fit: contain;
+  object-position: left center;
+  display: block;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Currency counter overlaid on EventSkuMeter. */
+.hud-top-count {
+  position: absolute;
+  /* Sits exactly on the black pill of EventSkuMeter.png (254×149 px picture):
+     pill = x 69–253, y 44–113 in picture pixels; one picture pixel = --hud-btn-h / 149. */
+  --meter-px: calc(var(--hud-btn-h) / 149);
+  top: calc(10px + 44 * var(--meter-px));
+  left: calc(30px + var(--hud-btn-h) * 70 / 73 + 10px + 69 * var(--meter-px));
+  height: calc(70 * var(--meter-px));
+  width: calc(185 * var(--meter-px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 11;
+}
+
+/* Close button: 68px tall, 30px from right. */
+.hud-close {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  height: var(--hud-btn-h);
+  width: auto;
+  aspect-ratio: 66 / 68;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  line-height: 0;
+  z-index: 11;
+}
+
+.hud-close img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+
+.state-b {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  pointer-events: none;
+}
+
+.voronoi-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.voronoi-layer .cell.is-gone {
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* Sam in the far bottom-left corner; both faces share one box so the swap
+   keeps the exact same position and size. */
+.sam {
+  position: absolute;
+  left: 0;
+  bottom: -10px;
+  height: 74.13%;
+  /* Matches the artwork so the box has no dead space around the character. */
+  aspect-ratio: 640 / 956;
+  pointer-events: none;
+  /* Pulls the transparent padding off-screen so Sam hugs the left edge. */
+  transform: translateX(var(--sam-shift, 0px));
+  /* Above the scene, numbers and the sponge VFX — nothing covers Sam. */
+  z-index: 11;
+}
+
+.sam.is-happy {
+  animation: sam-cheer 620ms cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  transform-origin: 50% 100%;
+}
+
+@keyframes sam-cheer {
+  0% {
+    transform: translateX(var(--sam-shift, 0px)) scale(1);
+  }
+  35% {
+    transform: translateX(var(--sam-shift, 0px)) scale(1.12) translateY(-2%);
+  }
+  100% {
+    transform: translateX(var(--sam-shift, 0px)) scale(1);
+  }
+}
+
+/* Sparkle burst over Sam when he cheers up. */
+.sam-sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+  overflow: visible;
+}
+
+.sam-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: left bottom;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+  transition: opacity 0.35s ease;
+}
+
+.sam-face.is-happy {
+  opacity: 0;
+}
+
+.sam.is-happy .sam-face.is-sad {
+  opacity: 0;
+}
+
+.sam.is-happy .sam-face.is-happy {
+  opacity: 1;
+}
+
+.icons-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: visible;
+}
+
+.vfx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 4;
+}
+
+.dust-layer {
+  display: none !important;
+}
+
+/* wipe7 liquid-splash matte drawn over the piece while it clears. */
+.brush-wipe-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  display: block;
+  z-index: 1;
+}
+
+.sponge-sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.sponge-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+  overflow: visible;
+}
+
+.sponge-sprite {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--sponge-size, 101px);
+  height: var(--sponge-size, 101px);
+  object-fit: contain;
+  opacity: 1;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.45));
+  will-change: transform, opacity;
+  transform-origin: 50% 50%;
+}
+
+.sponge-sparkle {
+  position: absolute;
+  margin: 0;
+  transform: translate(-50%, -50%) scale(0.2);
+  opacity: 0;
+  background: #fff;
+  clip-path: polygon(
+    50% 0%,
+    62% 38%,
+    100% 50%,
+    62% 62%,
+    50% 100%,
+    38% 62%,
+    0% 50%,
+    38% 38%
+  );
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.9));
+  animation: sponge-sparkle-pop var(--sparkle-dur, 560ms) ease-out
+    var(--sparkle-delay, 0ms) forwards;
+}
+
+@keyframes sponge-sparkle-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.15) rotate(0deg);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15) rotate(12deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -58%) scale(0.35) rotate(-8deg);
+  }
+}
+
+/* Wet lather smeared by the sponge; fades a few frames behind it. */
+.sponge-foam-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  display: block;
+  z-index: 2;
+}
+
+/* Soap bubbles: iridescent shell, rise off the sponge and pop. */
+.soap-bubble {
+  position: absolute;
+  margin: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 58;
+  /* Transparent film: colour lives in the rim, the centre stays see-through. */
+  background: radial-gradient(
+      circle at 32% 27%,
+      rgba(255, 255, 255, 0.85) 0%,
+      rgba(255, 255, 255, 0.18) 16%,
+      rgba(255, 255, 255, 0) 38%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(255, 255, 255, 0) 52%,
+      rgba(175, 230, 255, 0.3) 74%,
+      rgba(255, 205, 245, 0.42) 88%,
+      rgba(230, 255, 240, 0.7) 100%
+    );
+  box-shadow:
+    inset 0 0 4px rgba(255, 255, 255, 0.55),
+    0 0 5px rgba(200, 240, 255, 0.35);
+  will-change: transform, opacity;
+  animation: soap-bubble-float var(--bubble-dur, 1100ms)
+    cubic-bezier(0.22, 0.7, 0.3, 1) var(--bubble-delay, 0ms) forwards;
+}
+
+.soap-bubble::after {
+  content: "";
+  position: absolute;
+  left: 24%;
+  top: 20%;
+  width: 24%;
+  height: 17%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  transform: rotate(-20deg);
+}
+
+@keyframes soap-bubble-float {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  14% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(var(--bubble-scale, 1));
+  }
+  55% {
+    opacity: 0.9;
+    transform: translate(
+        calc(-50% + var(--bubble-dx, 0px) * 0.6),
+        calc(-50% + var(--bubble-dy, -40px) * 0.6)
+      )
+      scale(calc(var(--bubble-scale, 1) * 1.04));
+  }
+  88% {
+    opacity: 0.7;
+    transform: translate(
+        calc(-50% + var(--bubble-dx, 0px)),
+        calc(-50% + var(--bubble-dy, -40px))
+      )
+      scale(calc(var(--bubble-scale, 1) * 1.1));
+  }
+  /* Pop. */
+  100% {
+    opacity: 0;
+    transform: translate(
+        calc(-50% + var(--bubble-dx, 0px)),
+        calc(-50% + var(--bubble-dy, -40px))
+      )
+      scale(calc(var(--bubble-scale, 1) * 1.5));
+  }
+}
+
+.cell-icon {
+  position: absolute;
+  width: 84px;
+  height: 98px;
+  margin: -54px 0 0 -42px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+  transition: opacity 0.25s ease, transform 0.28s ease-out;
+  transform: translate(0, 0) scale(1);
+}
+
+/* Attention hint: when the player leaves the pieces alone, the numbers pulse twice.
+   (Uses the separate `scale` property, so it never fights the transform used for flying/hiding.) */
+.cell-icon.is-hint {
+  animation: cell-hint-pulse 0.75s cubic-bezier(0.45, 0, 0.55, 1) 2;
+}
+
+@keyframes cell-hint-pulse {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.12;
+  }
+}
+
+/* Back layer: black circle @ 50% opacity */
+.cell-icon-plate {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  /* 20% larger than the original 64px */
+  width: 77px;
+  height: 77px;
+  margin: 0;
+  box-sizing: border-box;
+  border-radius: 50%;
+  /* black circle at 60% */
+  background: rgba(0, 0, 0, 0.6);
+  /* 1px white outline, softened (blurred) edge */
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  /* blur the outline + small white glow around the circle */
+  box-shadow:
+    0 0 2px 0 rgba(255, 255, 255, 0.7),
+    inset 0 0 2px 0 rgba(255, 255, 255, 0.45),
+    0 0 10px 3px rgba(255, 255, 255, 0.5),
+    0 0 22px 7px rgba(255, 255, 255, 0.3);
+  /* frosted blur of the picture behind the circle (20px + 30%) */
+  -webkit-backdrop-filter: blur(var(--plate-blur, 26px));
+  backdrop-filter: blur(var(--plate-blur, 26px));
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Middle: SKU icon above the number */
+.cell-icon-sku {
+  position: relative;
+  z-index: 2;
+  width: 58px;
+  height: auto;
+  margin-top: 0;
+  object-fit: contain;
+  pointer-events: none;
+  display: block;
+  order: 1;
+}
+
+/* Front: number below icon, tucked slightly up onto it */
+.cell-icon-label {
+  position: relative;
+  z-index: 3;
+  order: 2;
+  margin-top: -18px;
+  font-size: 19.2pt;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  -webkit-text-stroke: 3px #000;
+  paint-order: stroke fill;
+  text-shadow: 0 2px 0 #000;
+  pointer-events: none;
+}
+
+.cell-icon.is-fading {
+  opacity: 0;
+  transform: translate(0, 0) scale(1.3);
+  pointer-events: none;
+}
+
+.cell-icon.is-gone {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* Extra dark strip along the very top of every dark screen (result screens and "How to play"):
+   80% black at the top, melting away towards the bottom. It keeps the proportions of the design
+   file (2560 x 599), so it scales with the screen width, and it sits behind the pictures. */
+.reward-screen::before,
+.info-overlay::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  aspect-ratio: 2560 / 599;
+  max-height: 70%;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.8) 5%, rgba(0, 0, 0, 0.8) 10%, rgba(0, 0, 0, 0.8) 15%, rgba(0, 0, 0, 0.8) 20%, rgba(0, 0, 0, 0.8) 25%, rgba(0, 0, 0, 0.8) 30%, rgba(0, 0, 0, 0.8) 35%, rgba(0, 0, 0, 0.793) 40%, rgba(0, 0, 0, 0.78) 45%, rgba(0, 0, 0, 0.753) 50%, rgba(0, 0, 0, 0.701) 55%, rgba(0, 0, 0, 0.616) 60%, rgba(0, 0, 0, 0.494) 65%, rgba(0, 0, 0, 0.349) 70%, rgba(0, 0, 0, 0.212) 75%, rgba(0, 0, 0, 0.105) 80%, rgba(0, 0, 0, 0.04) 85%, rgba(0, 0, 0, 0.012) 90%, rgba(0, 0, 0, 0.003) 95%, rgba(0, 0, 0, 0) 100%);
+  pointer-events: none;
+}
+
+/* Result screens: one 80% dark layer that stays put while the picture on it changes.
+   - after every scene: "Stage Completed!" picture
+   - after the last scene: "The Makeover Completed!" picture, then the "Let's Go Again!" card. */
+.reward-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s ease, background 0.45s ease;
+  z-index: 50;
+  cursor: pointer;
+}
+
+.reward-screen[hidden] {
+  display: none;
+}
+
+.reward-screen.is-visible {
+  background: rgba(0, 0, 0, 0.8);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* The "Stage Completed!" / "The Makeover Completed!" picture, as big as fits. */
+.reward-popup {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  opacity: 0;
+  transform: scale(0.94);
+  transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+
+.reward-screen.is-visible .reward-popup {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Broom and coins of the Makeover screen: fixed to the two bottom corners of the screen, sized
+   by the screen height, so they move apart or together as the screen gets wider or narrower. */
+.reward-corner {
+  position: absolute;
+  bottom: 0;
+  height: 58%;
+  width: auto;
+  max-width: 46%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  opacity: 0;
+  transition: opacity 0.45s ease, transform 0.6s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.reward-corner.is-left {
+  left: 0;
+  height: 72%;
+  object-position: left bottom;
+  transform: translate(-8%, 6%);
+}
+
+.reward-corner.is-right {
+  right: 0;
+  height: 68%;
+  object-position: right bottom;
+  transform: translate(8%, 6%);
+}
+
+.reward-screen.is-makeover.is-visible .reward-corner {
+  opacity: 1;
+  transform: none;
+}
+
+/* When the "Let's Go Again!" card comes in, the broom slides out to the left and the coins
+   slide out to the right, off the screen. */
+.reward-screen.is-makeover.is-visible.is-replay .reward-corner {
+  opacity: 1;
+  transition: transform 0.75s cubic-bezier(0.55, 0, 0.85, 0.35), opacity 0.2s ease 0.6s;
+}
+
+.reward-screen.is-makeover.is-visible.is-replay .reward-corner.is-left {
+  transform: translateX(-110%);
+  opacity: 0;
+}
+
+.reward-screen.is-makeover.is-visible.is-replay .reward-corner.is-right {
+  transform: translateX(110%);
+  opacity: 0;
+}
+
+/* Black screen the game fades through when it moves on to the next scene or starts over. */
+.blackout {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+  z-index: 70;
+}
+
+.blackout.is-on {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Start screen. It covers everything; a tap fades through white into the first scene. */
+.splash {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  background: #000;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.splash[hidden] {
+  display: none;
+}
+
+/* Fills the screen; the bottom of the picture (the "Tap to continue" line) is kept in view. */
+.splash-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 85%;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* White screen used for the fade from the start screen into the game. */
+.whiteout {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+  z-index: 90;
+}
+
+.whiteout.is-on {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* The "Let's Go Again!" card. */
+.replay-card {
+  position: relative;
+  height: 86%;
+  aspect-ratio: 1285 / 1040;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.92);
+  transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+
+.reward-screen.is-replay {
+  cursor: default;
+}
+
+.reward-screen.is-replay .reward-popup {
+  opacity: 0;
+  transform: scale(1.04);
+  pointer-events: none;
+}
+
+.reward-screen.is-replay .replay-card {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.replay-card-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Invisible tap area exactly over the green Replay button in the picture. */
+.replay-button {
+  position: absolute;
+  left: 35.4%;
+  top: 84.1%;
+  width: 29.2%;
+  height: 13.8%;
+  padding: 0;
+  border: 0;
+  border-radius: 40%;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.replay-button:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Falling gold stars + corner spotlights, above the reward overlay. */
+.spotlight-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 13;
+  transition: opacity 0.4s ease;
+}
+
+.spotlight-layer.is-leaving {
+  opacity: 0;
+}
+
+.spotlight-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.celebrate-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.celebrate-layer.is-active {
+  opacity: 1;
+}
+
+.celebrate-glow {
+  position: absolute;
+  inset: auto;
+  border-radius: 42% 48% 38% 44%;
+  background: radial-gradient(
+      ellipse at 50% 42%,
+      rgba(255, 248, 210, 0.28) 0%,
+      rgba(255, 220, 130, 0.1) 42%,
+      rgba(255, 255, 255, 0) 70%
+    ),
+    radial-gradient(
+      circle at 30% 55%,
+      rgba(255, 255, 255, 0.12) 0%,
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 72% 40%,
+      rgba(255, 240, 180, 0.12) 0%,
+      transparent 48%
+    );
+  animation: celebrate-glow-pulse 1.2s ease-in-out infinite alternate;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+@keyframes celebrate-glow-pulse {
+  from {
+    opacity: 0.4;
+    transform: scale(0.99);
+  }
+  to {
+    opacity: 0.75;
+    transform: scale(1.02);
+  }
+}
+
+.celebrate-sparkle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity, filter;
+  animation: celebrate-sparkle-pop var(--spark-dur, 1080ms) ease-in-out
+    var(--spark-delay, 0ms) infinite;
+  mix-blend-mode: screen;
+}
+
+/* Thin 4-point star */
+.celebrate-sparkle.is-star {
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 248, 210, 0.85) 22%,
+    rgba(255, 220, 120, 0.12) 48%,
+    transparent 64%
+  );
+  clip-path: polygon(
+    50% 0%,
+    54% 42%,
+    100% 50%,
+    54% 58%,
+    50% 100%,
+    46% 58%,
+    0% 50%,
+    46% 42%
+  );
+  filter: drop-shadow(0 0 2px rgba(255, 245, 190, 0.9))
+    drop-shadow(0 0 6px rgba(255, 220, 120, 0.45));
+}
+
+/* Soft cross glint */
+.celebrate-sparkle.is-glint {
+  background:
+    linear-gradient(
+      90deg,
+      transparent 46%,
+      rgba(255, 255, 255, 0.95) 50%,
+      transparent 54%
+    ),
+    linear-gradient(
+      0deg,
+      transparent 46%,
+      rgba(255, 250, 220, 0.9) 50%,
+      transparent 54%
+    ),
+    radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.9) 0%,
+      rgba(255, 230, 150, 0.35) 30%,
+      transparent 58%
+    );
+  border-radius: 50%;
+  filter: drop-shadow(0 0 3px rgba(255, 240, 170, 0.75));
+}
+
+/* Tiny mote */
+.celebrate-sparkle.is-twinkle {
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 240, 180, 0.55) 40%,
+    transparent 72%
+  );
+  border-radius: 50%;
+  filter: drop-shadow(0 0 2px rgba(255, 235, 160, 0.7));
+}
+
+@keyframes celebrate-sparkle-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.35)
+      rotate(var(--spark-rot, 0deg));
+  }
+  18% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(1)
+      rotate(calc(var(--spark-rot, 0deg) + 6deg));
+  }
+  42% {
+    opacity: 0.55;
+    transform: translate(-50%, -51%) scale(0.7)
+      rotate(calc(var(--spark-rot, 0deg) - 2deg));
+  }
+  68% {
+    opacity: 1;
+    transform: translate(-50%, -51%) scale(1.05)
+      rotate(calc(var(--spark-rot, 0deg) + 4deg));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -54%) scale(0.3)
+      rotate(calc(var(--spark-rot, 0deg) - 8deg));
+  }
+}
+
+/* ---------- "How to play?" info overlay ---------- */
+/* While it is open the HUD layer is lifted above everything (reward screen
+   included); inside it the overlay covers the HUD and only Close stays on top. */
+.hud-layer.is-info-open {
+  z-index: 60;
+}
+
+.info-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.info-overlay[hidden] {
+  display: none;
+}
+
+.info-overlay.is-visible {
+  opacity: 1;
+}
+
+.info-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+.hud-layer.is-info-open .hud-close {
+  z-index: 30;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .info-overlay {
+    transition: none;
+  }
+}
+
+/* Info and Close buttons 20% smaller, each kept centred on its old spot
+   (meter and counter keep the full --hud-btn-h size). */
+.hud-info,
+.hud-close {
+  height: calc(var(--hud-btn-h) * 0.8);
+  top: calc(20px + var(--hud-btn-h) * 0.1);
+}
+.hud-info {
+  left: calc(30px + var(--hud-btn-h) * 70 / 73 * 0.1);
+}
+.hud-close {
+  right: calc(30px + var(--hud-btn-h) * 66 / 68 * 0.1);
+}
+
+/* ---------- Dust brush clean ---------- */
+.brush-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+  overflow: visible;
+}
+
+.brush-sprite {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2; /* above its own dust clouds */
+  object-fit: contain;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.4));
+  will-change: transform, opacity;
+  user-select: none;
+}
+
+/* Soft, lumpy dust cloud: a blurred blob with two smaller lumps. */
+.dust-puff {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 45% 45%,
+    rgba(255, 186, 210, 0.92) 0%,
+    rgba(255, 140, 184, 0.72) 40%,
+    rgba(244, 112, 168, 0.32) 64%,
+    rgba(236, 130, 176, 0) 78%
+  );
+  filter: blur(3.5px);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.35);
+  animation: dust-puff var(--puff-dur, 900ms) cubic-bezier(0.2, 0.7, 0.3, 1)
+    var(--puff-delay, 0ms) forwards;
+  will-change: transform, opacity;
+}
+
+.dust-puff::before,
+.dust-puff::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: inherit;
+}
+
+.dust-puff::before {
+  width: 70%;
+  height: 70%;
+  left: -22%;
+  top: 28%;
+}
+
+.dust-puff::after {
+  width: 58%;
+  height: 58%;
+  right: -18%;
+  top: 8%;
+}
+
+@keyframes dust-puff {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.35) rotate(0deg);
+  }
+  18% {
+    opacity: var(--puff-alpha, 0.8);
+  }
+  55% {
+    opacity: calc(var(--puff-alpha, 0.8) * 0.7);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+        calc(-50% + var(--puff-dx, 0px)),
+        calc(-50% + var(--puff-dy, -20px))
+      )
+      scale(var(--puff-scale, 1.8)) rotate(var(--puff-rot, 0deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dust-puff {
+    animation-duration: 1ms;
+  }
+}
+
+/* Tapped icon: number and circle vanish, the icon brush is replaced by the
+   moving cleaning brush in the same frame. */
+/* Brush icon on each piece: 20% larger. Scaled around its lower part so the
+   number stays in the same place on it; the layout box is unchanged. */
+.cell-icon-sku {
+  /* 1.2 × 1.2 = 44% larger than the original picture, 10px lower */
+  transform: translateY(10px) scale(1.44);
+  transform-origin: 50% 75%;
+}
+
+.cell-icon.is-cleaning {
+  pointer-events: none;
+}
+.cell-icon.is-cleaning .cell-icon-plate,
+.cell-icon.is-cleaning .cell-icon-label {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.cell-icon.is-cleaning .cell-icon-sku {
+  visibility: hidden;
+}
+
+
+/* ---------- Real phone held upright: ask to turn it ---------- */
+.rotate-hint {
+  display: none;
+}
+.is-bare.is-portrait .rotate-hint {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  background: #0d0f13;
+  color: #fff;
+  font: 600 18px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  text-align: center;
+}
+.rotate-hint-phone {
+  width: 46px;
+  height: 80px;
+  border: 3px solid #fff;
+  border-radius: 10px;
+  animation: rotate-hint 2.2s ease-in-out infinite;
+}
+@keyframes rotate-hint {
+  0%, 25% { transform: rotate(0deg); }
+  55%, 100% { transform: rotate(-90deg); }
+}
+.is-bare.is-portrait .viewport {
+  visibility: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rotate-hint-phone { animation: none; transform: rotate(-90deg); }
+}
+  </style>
+</head>
+<body>
+  <div class="rotate-hint" aria-live="polite">
+    <div class="rotate-hint-phone" aria-hidden="true"></div>
+    <div>Поверните телефон горизонтально</div>
+  </div>
+  <div class="viewport">
+    <div class="iphone" id="iphone">
+      <span class="iphone-btn action" aria-hidden="true"></span>
+      <span class="iphone-btn vol-up" aria-hidden="true"></span>
+      <span class="iphone-btn vol-dn" aria-hidden="true"></span>
+      <span class="iphone-btn power" aria-hidden="true"></span>
+      <span class="iphone-btn camera" aria-hidden="true"></span>
+
+      <div class="device">
+        <div class="notch" aria-hidden="true">
+          <span class="notch-speaker"></span>
+          <span class="notch-camera"></span>
+        </div>
+        <div class="stage" id="stage">
+          <div class="play-area" id="play-area">
+            <img class="state-b" id="state-b" src="assets/Scene1-BG1.png" alt="State B" draggable="false" />
+            <svg class="voronoi-layer" id="voronoi-layer" aria-hidden="true"></svg>
+            <div class="vfx-layer" id="vfx-layer" aria-hidden="true"></div>
+            <div class="icons-layer" id="icons-layer"></div>
+            <div class="celebrate-layer" id="celebrate-layer" aria-hidden="true"></div>
+          </div>
+          <div class="hud-layer" id="hud-layer">
+            <div class="hud-top-wrap">
+              <!-- Same box as the old combined header: title on top, milestones panel under it. -->
+              <img class="hud-title" src="assets/Header.png" alt="Peggy Makeover" draggable="false" />
+              <img class="hud-milestones" id="hud-milestones" src="assets/Milestones_Bar1.png" alt="" draggable="false" />
+            </div>
+            <button type="button" class="hud-info" aria-label="Info">
+              <img src="assets/info_btn_LS.png" alt="" draggable="false" />
+            </button>
+            <img class="hud-meter" src="assets/EventSkuMeter.png" alt="" draggable="false" />
+            <span class="hud-top-count" id="hud-top-count">100</span>
+            <!-- "How to play?" screen: dark layer + picture; the Close button stays on top of it. -->
+            <div class="info-overlay" id="info-overlay" role="dialog" aria-label="How to play" hidden>
+              <img class="info-screen" src="assets/info_screen.png" alt="How to play" draggable="false" />
+            </div>
+            <button type="button" class="hud-close" aria-label="Close">
+              <img src="assets/close_btn_LS.png" alt="" draggable="false" />
+            </button>
+          </div>
+          <!-- End of the only scene: Makeover Complete reward. A tap restarts the scene. -->
+          <div class="reward-screen" id="reward-screen" hidden>
+            <!-- Broom (left) and coins (right) stick to the bottom corners of the screen. -->
+            <img class="reward-corner is-left" id="reward-corner-left" alt="" draggable="false" />
+            <img class="reward-corner is-right" id="reward-corner-right" alt="" draggable="false" />
+            <img class="reward-popup" id="reward-popup" alt="Tap to collect" draggable="false" />
+            <div class="replay-card">
+              <img class="replay-card-img" id="replay-card-img" alt="Let's Go Again! Let's do the makeover again, now for even bigger rewards!" draggable="false" />
+              <button type="button" class="replay-button" id="replay-button" aria-label="Replay"></button>
+            </div>
+          </div>
+          <div class="blackout" id="blackout"></div>
+          <!-- Start screen -->
+          <div class="splash" id="splash" hidden>
+            <img class="splash-img" id="splash-img" alt="Peggy Makeover" draggable="false" />
+          </div>
+          <div class="whiteout" id="whiteout"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fits the phone to the window and scales the fixed-size stage (1300×598) into its screen. -->
+  <script>
+    (function () {
+      var DESIGN_W = 1300;
+      var DESIGN_H = 598;
+      var root = document.documentElement;
+
+      function isRealPhone() {
+        var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+        return coarse && Math.min(window.innerWidth, window.innerHeight) < 600;
+      }
+
+      function fit() {
+        var w = window.innerWidth;
+        var h = window.innerHeight;
+        var screenW;
+
+        // Real phone held upright: the game is landscape, so ask to turn it.
+        root.classList.toggle("is-portrait", isRealPhone() && h > w);
+
+        if (isRealPhone()) {
+          root.classList.add("is-bare");
+          screenW = Math.min(w, (h * DESIGN_W) / DESIGN_H);
+        } else {
+          root.classList.remove("is-bare");
+          // controls height + gap to the phone + the extra 30px margin above the buttons
+          var controlsH = 28 + 30;
+          // Phone body ≈ 1.05 × screen width wide and ≈ 0.50 × screen width tall.
+          var byWidth = (w - 32) / 1.05;
+          var byHeight = (h - controlsH - 40) / 0.5;
+          // PHONE_SIZE: 1 = as large as fits the window, 0.8 = 20% smaller.
+          var PHONE_SIZE = 0.8;
+          screenW = Math.max(200, Math.min(byWidth, byHeight) * PHONE_SIZE);
+        }
+
+        root.style.setProperty("--screen-w", screenW.toFixed(2) + "px");
+        root.style.setProperty("--stage-scale", (screenW / DESIGN_W).toFixed(5));
+      }
+
+      fit();
+      window.addEventListener("resize", fit);
+      window.addEventListener("orientationchange", function () {
+        setTimeout(fit, 100);
+      });
+    })();
+  </script>
+  <script>
+(function (global) {
+  "use strict";
+
+  const EPS = 1e-9;
+  /** Pixels each cell grows by so adjacent pieces overlap instead of leaving a seam. */
+  const SEAM_OVERLAP = 2.5;
+
+  function distSq(a, b) {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return dx * dx + dy * dy;
+  }
+
+  function dot(a, b) {
+    return a.x * b.x + a.y * b.y;
+  }
+
+  /** Negative margin bleeds the cells past the stage so no edge stays uncovered. */
+  function rectPolygon(width, height, margin = 0) {
+    return [
+      { x: margin, y: margin },
+      { x: width - margin, y: margin },
+      { x: width - margin, y: height - margin },
+      { x: margin, y: height - margin },
+    ];
+  }
+
+  /** Keep points closer to siteA than to siteB. */
+  function clipHalfPlane(polygon, siteA, siteB) {
+    if (polygon.length === 0) return [];
+
+    const origin = { x: 0, y: 0 };
+    const d = { x: siteB.x - siteA.x, y: siteB.y - siteA.y };
+    const c = distSq(siteB, origin) - distSq(siteA, origin);
+
+    function inside(p) {
+      return 2 * dot(d, p) <= c + EPS;
+    }
+
+    function intersect(p1, p2) {
+      const dp = { x: p2.x - p1.x, y: p2.y - p1.y };
+      const denom = 2 * dot(d, dp);
+      if (Math.abs(denom) < EPS) return { x: p1.x, y: p1.y };
+      const t = (c - 2 * dot(d, p1)) / denom;
+      return {
+        x: p1.x + t * dp.x,
+        y: p1.y + t * dp.y,
+      };
+    }
+
+    const output = [];
+    for (let i = 0; i < polygon.length; i++) {
+      const current = polygon[i];
+      const previous = polygon[(i + polygon.length - 1) % polygon.length];
+      const currIn = inside(current);
+      const prevIn = inside(previous);
+
+      if (currIn) {
+        if (!prevIn) {
+          output.push(intersect(previous, current));
+        }
+        output.push(current);
+      } else if (prevIn) {
+        output.push(intersect(previous, current));
+      }
+    }
+    return output;
+  }
+
+  function voronoiCell(site, allSites, width, height, margin = 0) {
+    let poly = rectPolygon(width, height, margin);
+    for (let i = 0; i < allSites.length; i++) {
+      if (i === site.index) continue;
+      poly = clipHalfPlane(poly, site, allSites[i]);
+      if (poly.length === 0) break;
+    }
+    return poly;
+  }
+
+  function polygonCentroid(polygon) {
+    if (polygon.length === 0) return { x: 0, y: 0 };
+    if (polygon.length < 3) {
+      let sx = 0;
+      let sy = 0;
+      for (const p of polygon) {
+        sx += p.x;
+        sy += p.y;
+      }
+      return { x: sx / polygon.length, y: sy / polygon.length };
+    }
+
+    let area = 0;
+    let cx = 0;
+    let cy = 0;
+    for (let i = 0; i < polygon.length; i++) {
+      const p0 = polygon[i];
+      const p1 = polygon[(i + 1) % polygon.length];
+      const cross = p0.x * p1.y - p1.x * p0.y;
+      area += cross;
+      cx += (p0.x + p1.x) * cross;
+      cy += (p0.y + p1.y) * cross;
+    }
+    area *= 0.5;
+    if (Math.abs(area) < EPS) {
+      let sx = 0;
+      let sy = 0;
+      for (const p of polygon) {
+        sx += p.x;
+        sy += p.y;
+      }
+      return { x: sx / polygon.length, y: sy / polygon.length };
+    }
+    return { x: cx / (6 * area), y: cy / (6 * area) };
+  }
+
+  function polygonToPoints(polygon) {
+    return polygon.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
+  }
+
+  function signedArea(polygon) {
+    let sum = 0;
+    for (let i = 0; i < polygon.length; i++) {
+      const p0 = polygon[i];
+      const p1 = polygon[(i + 1) % polygon.length];
+      sum += p0.x * p1.y - p1.x * p0.y;
+    }
+    return sum * 0.5;
+  }
+
+  function polygonArea(polygon) {
+    if (polygon.length < 3) return 0;
+    return Math.abs(signedArea(polygon));
+  }
+
+  /**
+   * Push every edge outward by `pad` so neighbouring cells overlap slightly,
+   * which hides the antialiased hairline seam between them.
+   */
+  function expandPolygon(polygon, pad) {
+    if (polygon.length < 3 || pad <= 0) return polygon;
+
+    const poly = signedArea(polygon) < 0 ? polygon.slice().reverse() : polygon;
+    const n = poly.length;
+    const edges = [];
+
+    for (let i = 0; i < n; i++) {
+      const p0 = poly[i];
+      const p1 = poly[(i + 1) % n];
+      const dx = p1.x - p0.x;
+      const dy = p1.y - p0.y;
+      const len = Math.hypot(dx, dy);
+      if (len < EPS) continue;
+
+      const ux = dx / len;
+      const uy = dy / len;
+      // Outward normal for a positively-signed (counter-clockwise) polygon.
+      edges.push({
+        point: { x: p0.x + uy * pad, y: p0.y - ux * pad },
+        dir: { x: ux, y: uy },
+      });
+    }
+
+    if (edges.length < 3) return polygon;
+
+    const result = [];
+    for (let i = 0; i < edges.length; i++) {
+      const a = edges[i];
+      const b = edges[(i + 1) % edges.length];
+      const cross = a.dir.x * b.dir.y - a.dir.y * b.dir.x;
+
+      if (Math.abs(cross) < EPS) {
+        result.push({ x: b.point.x, y: b.point.y });
+        continue;
+      }
+
+      const wx = b.point.x - a.point.x;
+      const wy = b.point.y - a.point.y;
+      const t = (wx * b.dir.y - wy * b.dir.x) / cross;
+      result.push({ x: a.point.x + a.dir.x * t, y: a.point.y + a.dir.y * t });
+    }
+
+    return result;
+  }
+
+  function cloneSite(site) {
+    return { x: site.x, y: site.y, index: site.index };
+  }
+
+  function cellsForSites(sites, width, height) {
+    return sites.map((site) => {
+      const polygon = voronoiCell(site, sites, width, height);
+      return {
+        index: site.index,
+        site,
+        polygon,
+        area: polygonArea(polygon),
+        centroid: polygonCentroid(polygon),
+      };
+    });
+  }
+
+  function areaBalanceRatio(cells) {
+    const areas = cells.map((c) => c.area).filter((a) => a > EPS);
+    if (areas.length === 0) return Infinity;
+    const min = Math.min(...areas);
+    const max = Math.max(...areas);
+    if (min < EPS) return Infinity;
+    return max / min;
+  }
+
+  /**
+   * How many seeds sit on each row. Rows are chosen so cells come out roughly
+   * square, and the remainder is spread one per row so no slot is left empty.
+   */
+  function rowCounts(count, width, height) {
+    let rows = Math.max(1, Math.round(Math.sqrt((count * height) / width)));
+    rows = Math.min(rows, count);
+
+    const base = Math.floor(count / rows);
+    const extra = count % rows;
+    const counts = [];
+    for (let row = 0; row < rows; row++) {
+      counts.push(base + (row < extra ? 1 : 0));
+    }
+    return counts;
+  }
+
+  /**
+   * Split `total` into `n` uneven parts. `spread` is how far each part may drift
+   * from an equal share, so slots — and therefore cells — differ in size.
+   */
+  function randomSpans(total, n, spread) {
+    const weights = [];
+    let sum = 0;
+    for (let i = 0; i < n; i++) {
+      const w = 1 + (Math.random() * 2 - 1) * spread;
+      weights.push(w);
+      sum += w;
+    }
+    return weights.map((w) => (w / sum) * total);
+  }
+
+  /** Rows of unequal slots, with each seed nudged around inside its own slot. */
+  function jitteredGridSeeds(count, width, height, jitter, spread) {
+    const counts = rowCounts(count, width, height);
+    const rowHeights = randomSpans(height, counts.length, spread);
+    const seeds = [];
+    let rowTop = 0;
+
+    counts.forEach((cols, row) => {
+      const rowHeight = rowHeights[row];
+      const colWidths = randomSpans(width, cols, spread);
+      let colLeft = 0;
+
+      for (let col = 0; col < cols; col++) {
+        const colWidth = colWidths[col];
+        const x = colLeft + colWidth * (0.5 + (Math.random() - 0.5) * jitter);
+        const y = rowTop + rowHeight * (0.5 + (Math.random() - 0.5) * jitter);
+        seeds.push({
+          x: Math.max(1, Math.min(width - 1, x)),
+          y: Math.max(1, Math.min(height - 1, y)),
+          index: seeds.length,
+        });
+        colLeft += colWidth;
+      }
+      rowTop += rowHeight;
+    });
+
+    return seeds;
+  }
+
+  /**
+   * Partial Lloyd steps. Moving only part of the way to the centroid rounds off
+   * slivers without collapsing the layout back to an even, obviously regular grid.
+   */
+  function smoothSites(sites, width, height, passes, strength) {
+    let current = sites.map(cloneSite);
+
+    for (let pass = 0; pass < passes; pass++) {
+      const cells = cellsForSites(current, width, height);
+      current = cells.map((cell, i) => ({
+        x: current[i].x + (cell.centroid.x - current[i].x) * strength,
+        y: current[i].y + (cell.centroid.y - current[i].y) * strength,
+        index: cell.index,
+      }));
+    }
+
+    return current;
+  }
+
+  function generateBalancedSites(count, width, height) {
+    const JITTER = 0.55;
+    const SPREAD = 0.42;
+    // Largest piece may be ~2-3.4x the smallest: clearly varied, no slivers.
+    const TARGET_MIN = 1.9;
+    const TARGET_MAX = 3.4;
+    const MAX_ATTEMPTS = 14;
+    const midRatio = (TARGET_MIN + TARGET_MAX) / 2;
+
+    let bestSites = null;
+    let bestScore = Infinity;
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const sites = smoothSites(
+        jitteredGridSeeds(count, width, height, JITTER, SPREAD),
+        width,
+        height,
+        1,
+        0.22
+      );
+      const ratio = areaBalanceRatio(cellsForSites(sites, width, height));
+
+      if (ratio >= TARGET_MIN && ratio <= TARGET_MAX) return sites;
+
+      const score = Math.abs(ratio - midRatio);
+      if (score < bestScore) {
+        bestScore = score;
+        bestSites = sites;
+      }
+    }
+
+    return bestSites;
+  }
+
+  function sitesFromNormalized(normalizedSites, width, height) {
+    return normalizedSites.map((s, index) => ({
+      x: s.nx * width,
+      y: s.ny * height,
+      index,
+    }));
+  }
+
+  /** New balanced layout once per page load (normalized 0–1 coordinates). */
+  function createSiteLayout(count, width, height) {
+    const sites = generateBalancedSites(count, width, height);
+    return sites.map((s) => ({
+      nx: s.x / width,
+      ny: s.y / height,
+    }));
+  }
+
+  function computeVoronoi(count, width, height, normalizedSites, margin = 0) {
+    const sites = normalizedSites
+      ? sitesFromNormalized(normalizedSites, width, height)
+      : generateBalancedSites(count, width, height);
+
+    return sites.map((site) => {
+      const polygon = voronoiCell(site, sites, width, height, margin);
+      // Slight overlap between neighbours so no background shows through the seams.
+      const padded = expandPolygon(polygon, SEAM_OVERLAP);
+      return {
+        index: site.index,
+        site,
+        polygon: padded,
+        centroid: polygonCentroid(polygon),
+        pointsAttr: polygonToPoints(padded),
+      };
+    });
+  }
+
+  global.VoronoiReveal = {
+    PIECE_COUNT: 6,
+    createSiteLayout,
+    computeVoronoi,
+    expandPolygon,
+    polygonToPoints,
+    polygonArea,
+  };
+})(window);
+
+  </script>
+  <!-- Info button opens the "How to play?" overlay, Close button (or Esc) closes it. -->
+  <script>
+    (function () {
+      var hud = document.getElementById("hud-layer");
+      var overlay = document.getElementById("info-overlay");
+      var infoBtn = document.querySelector(".hud-info");
+      var closeBtn = document.querySelector(".hud-close");
+      if (!hud || !overlay || !infoBtn || !closeBtn) return;
+
+      function isOpen() {
+        return !overlay.hidden;
+      }
+
+      function openInfo(event) {
+        if (event) event.stopPropagation();
+        overlay.hidden = false;
+        hud.classList.add("is-info-open");
+        // next frame so the fade-in transition runs
+        requestAnimationFrame(function () {
+          overlay.classList.add("is-visible");
+        });
+      }
+
+      function closeInfo(event) {
+        if (!isOpen()) return;
+        if (event) event.stopPropagation();
+        overlay.classList.remove("is-visible");
+        hud.classList.remove("is-info-open");
+        setTimeout(function () {
+          if (!overlay.classList.contains("is-visible")) overlay.hidden = true;
+        }, 250);
+      }
+
+      infoBtn.addEventListener("click", openInfo);
+      closeBtn.addEventListener("click", closeInfo);
+      // taps on the dark layer must not reach the game underneath
+      overlay.addEventListener("click", function (e) { e.stopPropagation(); });
+      overlay.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") closeInfo(e);
+      });
+    })();
+  </script>
+  
+  <script>
+(function () {
+  "use strict";
+
+  /** Wall-clock length of one brush clean (pick-up + sweeping + lift-off). */
+  const WIPE_MS = 450;
+  /** Timeline, as parts of WIPE_MS. */
+  const BRUSH_PICKUP_END = 0.08; // icon brush grows in place, right where it stood
+  const BRUSH_SWEEP_END = 0.86; // side-to-side sweeping inside the local area
+  /** From here the rest of the piece dissolves, gone exactly when the clean ends. */
+  const BRUSH_FADE_START = 0.78;
+  /** Brush width while cleaning (it grows to this from the icon size). */
+  const BRUSH_SIZE_PX = 90;
+  /** Radius of the cleaned trail. Wide and soft so the patch melts outward. */
+  const BRUSH_TRAIL_RADIUS_PX = 112 * 0.55;
+  /** The brush only sweeps a local square around the number, in stage px. */
+  const BRUSH_AREA_PX = 200;
+  /** Point on the brush picture (0–1) that touches the scene: tips of the bristles.
+   *  Makeup brush art points up-right, so the contact point is near the top. */
+  const BRUSH_TIP = { x: 0.57, y: 0.10 };
+  /** Fewest / most side-to-side sweeps inside the local area. */
+  const BRUSH_MIN_SWEEPS = 2;
+  // At 0.45s more sweeps would just flicker, so at most 3.
+  const BRUSH_MAX_SWEEPS = 3;
+
+  const FEATHER = 36;
+  /** Blur radius of the soft fade where a piece meets its neighbour. */
+  const EDGE_FADE = 34;
+  /** Corner rounding and the room the edge warp needs outside the stage. */
+  const CORNER_RADIUS = 56;
+  /** How far edge midpoints bend so borders never read as straight lines. */
+  const EDGE_WAVE = 18;
+  /** Subdivision spacing along each edge before wave + smoothing. */
+  const EDGE_STEP = 14;
+  const EDGE_PAD = 180;
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const XLINK_NS = "http://www.w3.org/1999/xlink";
+
+  const playArea = document.getElementById("play-area");
+  const svgLayer = document.getElementById("voronoi-layer");
+  const iconsLayer = document.getElementById("icons-layer");
+  const vfxLayer = document.getElementById("vfx-layer");
+  const celebrateLayer = document.getElementById("celebrate-layer");
+  const rewardScreen = document.getElementById("reward-screen");
+  const rewardPopup = document.getElementById("reward-popup");
+  const blackout = document.getElementById("blackout");
+  const splash = document.getElementById("splash");
+  const whiteout = document.getElementById("whiteout");
+  // Load the result picture right away so it is ready when the scene ends.
+  rewardPopup.src = "assets/MakeOver_Reward_popup_INT.png";
+  const replayButton = document.getElementById("replay-button");
+  const stateBImg = document.getElementById("state-b");
+  const milestonesImg = document.getElementById("hud-milestones");
+  const samEl = document.getElementById("sam");
+  const hudTopCountEl = document.getElementById("hud-top-count");
+
+  /** Eight cleaning parts on the single first scene. A tap on the reward screen starts it over. */
+  const GAME_PIECES = [8];
+  let gameIndex = 0;
+  /** Games that use their own milestones panel instead of their scene's (game number − 1 → picture). */
+  const GAME_MILESTONES = {
+    3: "assets/Milestones_Bar4.png", // game 4
+    4: "assets/Milestones_Bar5.png", // game 5
+    5: "assets/Milestones_Bar6.png", // game 6
+    6: "assets/Milestones_Bar7.png", // game 7
+  };
+
+  /** Games that use their own background pictures instead of their scene's (game number − 1 → pictures). */
+  const GAME_ART = {
+    3: { dirty: "assets/Scene4-BG2.png", clean: "assets/Scene4-BG1.png" }, // game 4
+    4: { dirty: "assets/Scene5-BG2.png", clean: "assets/Scene5-BG1.png" }, // game 5
+    5: { dirty: "assets/Scene6-BG2.png", clean: "assets/Scene6-BG1.png" }, // game 6
+    6: { dirty: "assets/Scene7-BG2.png", clean: "assets/Scene7-BG1.png" }, // game 7
+  };
+
+  let currency = budgetForPieceCount(GAME_PIECES[0]);
+  let displayCurrency = currency;
+  let currencyAnimRaf = 0;
+
+  function budgetForPieceCount(count) {
+    if (count <= 6) return 100;
+    if (count <= 12) return 500;
+    return 1000; // 14–19 pieces
+  }
+
+  /** The only scene in this prototype. */
+  const SCENES = [
+    {
+      dirty: "assets/Scene1-BG2.png",
+      clean: "assets/Scene1-BG1.png",
+      milestones: "assets/Milestones_Bar1.png",
+      coins: 3520,
+      gems: 352,
+    },
+  ];
+
+  const CELEBRATE_MS = 2400;
+  /** Keeps numbers off the picture border. */
+  const EDGE_PAD_PX = 28;
+  /** Clearance kept under the Header.png artwork. */
+  const HEADER_CLEARANCE_PX = 16;
+  /** Cells bleed this far past the stage so the dirty layer covers every edge. */
+  const EDGE_BLEED_PX = 80;
+
+  let sceneIndex = 0;
+  let stateAUrl = SCENES[0].dirty;
+  const iconUrl = "assets/SKU.png";
+
+  let pieceCount = GAME_PIECES[gameIndex];
+  let clearedCount = 0;
+  let layoutWidth = 0;
+  let layoutHeight = 0;
+  let siteLayout = null;
+  let celebrating = false;
+  let rewardOpen = false;
+  let replayOpen = false;
+  let splashOpen = false;
+  const cellPolygons = new Map();
+  /** Where each piece's number sits — the sponge starts scrubbing right there. */
+  const cellIconSpots = new Map();
+
+  /** Full-stage dust + spider-web overlay; punched out as pieces clear. */
+  let dustCanvas = null;
+  let dustCtx = null;
+  let dustBase = null;
+  /** Soft masks of already-cleaned cells, for redrawing the dust holes. */
+  const clearedDustMasks = [];
+
+  const stateAImage = new Image();
+  stateAImage.decoding = "async";
+  stateAImage.src = stateAUrl;
+
+  function applySceneArt(scene) {
+    const art = GAME_ART[gameIndex] || scene;
+    stateAUrl = art.dirty;
+    stateAImage.src = stateAUrl;
+    if (stateBImg) stateBImg.src = art.clean;
+    const bar = GAME_MILESTONES[gameIndex] || scene.milestones;
+    if (milestonesImg && bar) milestonesImg.src = bar;
+  }
+
+  applySceneArt(SCENES[sceneIndex]);
+
+  /**
+   * The picture fills the whole phone screen, edge to edge across the full
+   * width (no black side bars). The screen is a little wider than the
+   * picture, so the picture is scaled to the screen width and a thin strip at
+   * the very top and bottom falls outside the screen (like object-fit: cover).
+   * Pieces, numbers and the brush always stay inside the visible screen.
+   */
+  function fitPlayAreaToArt() {
+    const stage = playArea.parentElement;
+    if (!stage) return;
+    playArea.style.left = "0px";
+    playArea.style.top = "0px";
+    playArea.style.width = `${stage.offsetWidth}px`;
+    playArea.style.height = `${stage.offsetHeight}px`;
+    playArea.style.right = "auto";
+    playArea.style.bottom = "auto";
+  }
+
+  stateAImage.addEventListener("load", fitPlayAreaToArt);
+
+  /**
+   * Picture used for the cleaning brush. It is the same picture as the icon on
+   * each piece, so the icon brush itself lifts off and starts cleaning.
+   * (To use a separate picture, put e.g. "assets/brush.png" here.)
+   */
+  const BRUSH_IMAGE_URL = "assets/SKU.png";
+  const brushImage = new Image();
+  brushImage.decoding = "async";
+  brushImage.src = BRUSH_IMAGE_URL;
+
+  /**
+   * Soft dust cloud: puffs up, drifts away (pushed by the brush) and fades.
+   * opts.dx / opts.dy = drift direction, opts.size, opts.delay, opts.duration.
+   */
+  function spawnDustPuff(layer, x, y, opts) {
+    const o = opts || {};
+    const size = o.size || 22 + Math.random() * 26;
+    const el = document.createElement("span");
+    el.className = "dust-puff";
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.style.setProperty("--puff-dx", `${(o.dx || 0).toFixed(1)}px`);
+    el.style.setProperty("--puff-dy", `${(o.dy || 0).toFixed(1)}px`);
+    el.style.setProperty("--puff-scale", (1.5 + Math.random() * 0.9).toFixed(2));
+    el.style.setProperty("--puff-rot", `${Math.round((Math.random() - 0.5) * 90)}deg`);
+    el.style.setProperty("--puff-alpha", (0.6 + Math.random() * 0.3).toFixed(2));
+    const dur = o.duration || 650 + Math.random() * 450;
+    el.style.setProperty("--puff-dur", `${dur}ms`);
+    el.style.setProperty("--puff-delay", `${o.delay || 0}ms`);
+    layer.appendChild(el);
+    window.setTimeout(() => el.remove(), dur + (o.delay || 0) + 80);
+  }
+
+  /** Cloud of dust bursting outward, used on tap and when a piece is finished. */
+  function burstDustPuffs(layer, x, y, count, radius) {
+    for (let i = 0; i < count; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const rad = Math.random() * radius;
+      const push = 30 + Math.random() * 45;
+      spawnDustPuff(layer, x + Math.cos(ang) * rad, y + Math.sin(ang) * rad, {
+        size: 26 + Math.random() * 30,
+        delay: Math.random() * 160,
+        dx: Math.cos(ang) * push,
+        dy: Math.sin(ang) * push - 18,
+      });
+    }
+  }
+
+  /**
+   * The stage is laid out at a fixed design size and scaled with a CSS
+   * transform to fit the phone screen. getBoundingClientRect() returns the
+   * scaled on-screen size, so screen distances are divided by this factor to
+   * get back to stage pixels.
+   */
+  function stageScale() {
+    const w = playArea.offsetWidth;
+    if (!w) return 1;
+    const s = playArea.getBoundingClientRect().width / w;
+    return s > 0 ? s : 1;
+  }
+
+  function getStageSize() {
+    return {
+      width: Math.max(1, Math.round(playArea.offsetWidth)),
+      height: Math.max(1, Math.round(playArea.offsetHeight)),
+    };
+  }
+
+  const ICON_SIZE_PX = 84;
+  /** Clear space kept between two number plates. */
+  const ICON_MIN_GAP_PX = 30;
+  /** Matches .cell-icon size + negative margin (anchor = center of plate). */
+  const ICON_HALF_W_PX = 42;
+  // 54px plate + room for the 20% larger brush icon sticking out above it.
+  const ICON_EXTENT_TOP_PX = 62;
+  const ICON_EXTENT_BOTTOM_PX = 44;
+
+  /** Bottom edge of the Header.png artwork, in play-area pixels. */
+  function headerBottomPx() {
+    const header = document.querySelector(".hud-top-wrap");
+    if (!header || !playArea) return 0;
+    const h = header.getBoundingClientRect();
+    if (!h.height) return 0;
+    return (h.bottom - playArea.getBoundingClientRect().top) / stageScale();
+  }
+
+  /**
+   * Area where numbers may sit: the whole picture below the header. Width is
+   * not fenced off — pieces at the left and right edges keep their own centre.
+   */
+  function iconBounds(width, height) {
+    // Keep the whole number plate on screen now that the picture fills
+    // the screen edge to edge.
+    const minX = EDGE_PAD_PX + ICON_HALF_W_PX;
+    const maxX = width - EDGE_PAD_PX - ICON_HALF_W_PX;
+    // The header and HUD buttons are checked element by element (overlapsHud),
+    // so the free corners beside the header stay usable for numbers.
+    const minY = EDGE_PAD_PX + ICON_EXTENT_TOP_PX;
+    const maxY = height - EDGE_PAD_PX - ICON_EXTENT_BOTTOM_PX;
+    return {
+      minX,
+      maxX: Math.max(minX, maxX),
+      minY,
+      maxY: Math.max(minY, maxY),
+    };
+  }
+
+  function clampIconPoint(x, y, width, height) {
+    const b = iconBounds(width, height);
+    return {
+      x: Math.min(b.maxX, Math.max(b.minX, x)),
+      y: Math.min(b.maxY, Math.max(b.minY, y)),
+    };
+  }
+
+  /** Breathing room numbers keep from Sam's silhouette. */
+  const SAM_CLEAR_PX = 30;
+  /** Opaque bounds of the artwork (normalized) — filled in once measured. */
+  let samArtBox = { x0: 0, y0: 0, x1: 1, y1: 1 };
+
+  /** Sam's visible silhouette in play-area pixels (ignores transparent edges). */
+  function samRect() {
+    if (!samEl || !playArea) return null;
+    const s = samEl.getBoundingClientRect();
+    if (!s.width || !s.height) return null;
+    const pa = playArea.getBoundingClientRect();
+    const k = stageScale();
+    return {
+      x: (s.left - pa.left + s.width * samArtBox.x0) / k,
+      y: (s.top - pa.top + s.height * samArtBox.y0) / k,
+      w: (s.width * (samArtBox.x1 - samArtBox.x0)) / k,
+      h: (s.height * (samArtBox.y1 - samArtBox.y0)) / k,
+    };
+  }
+
+  /** Sam sits on top of everything, so numbers keep SAM_CLEAR_PX away. */
+  function overlapsSam(point) {
+    const r = samRect();
+    if (!r) return false;
+    return (
+      point.x + ICON_HALF_W_PX > r.x - SAM_CLEAR_PX &&
+      point.x - ICON_HALF_W_PX < r.x + r.w + SAM_CLEAR_PX &&
+      point.y + ICON_EXTENT_BOTTOM_PX > r.y - SAM_CLEAR_PX &&
+      point.y - ICON_EXTENT_TOP_PX < r.y + r.h + SAM_CLEAR_PX
+    );
+  }
+
+  /** Header + HUD buttons in stage pixels; measured once per layout. */
+  let hudBoxCache = null;
+
+  function hudBoxes() {
+    if (hudBoxCache) return hudBoxCache;
+    const pa = playArea.getBoundingClientRect();
+    const k = stageScale();
+    hudBoxCache = Array.from(
+      document.querySelectorAll(".hud-top-wrap, .hud-info, .hud-meter, .hud-close, .notch")
+    )
+      .map((el) => el.getBoundingClientRect())
+      .filter((r) => r.width && r.height)
+      .map((r) => ({
+        x: (r.left - pa.left) / k,
+        y: (r.top - pa.top) / k,
+        w: r.width / k,
+        h: r.height / k,
+      }));
+    return hudBoxCache;
+  }
+
+  /** A number at `point` would touch the header or a HUD button. */
+  function overlapsHud(point) {
+    const pad = HEADER_CLEARANCE_PX;
+    return hudBoxes().some(
+      (r) =>
+        point.x + ICON_HALF_W_PX > r.x - pad &&
+        point.x - ICON_HALF_W_PX < r.x + r.w + pad &&
+        point.y + ICON_EXTENT_BOTTOM_PX > r.y - pad &&
+        point.y - ICON_EXTENT_TOP_PX < r.y + r.h + pad
+    );
+  }
+
+  /** Spot is covered by Sam or by the HUD. */
+  function blockedSpot(point) {
+    return overlapsSam(point) || overlapsHud(point);
+  }
+
+  /**
+   * Slide the artwork left until the silhouette touches the picture edge.
+   * Expressed in percent of Sam's own width, so it survives any relayout.
+   */
+  function applySamShift() {
+    if (!samEl) return;
+    samEl.style.setProperty("--sam-shift", `${(-samArtBox.x0 * 100).toFixed(3)}%`);
+  }
+
+  /**
+   * Both poses are measured for opaque pixels; the union drives the exclusion
+   * zone and the smaller left padding drives the shift, so neither gets cropped.
+   */
+  function measureSamArt() {
+    if (!samEl) return;
+    const sources = ["assets/sam-sad.png", "assets/sam-happy.png"];
+    const jobs = sources.map(
+      (src) =>
+        new Promise((resolve) => {
+          const img = new Image();
+          img.onerror = () => resolve(null);
+          img.onload = () => {
+            const w = 200;
+            const h = Math.max(
+              1,
+              Math.round((200 * img.naturalHeight) / img.naturalWidth)
+            );
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            ctx.drawImage(img, 0, 0, w, h);
+            const data = ctx.getImageData(0, 0, w, h).data;
+            let x0 = w;
+            let y0 = h;
+            let x1 = 0;
+            let y1 = 0;
+            let found = false;
+            for (let y = 0; y < h; y++) {
+              for (let x = 0; x < w; x++) {
+                if (data[(y * w + x) * 4 + 3] <= 12) continue;
+                found = true;
+                if (x < x0) x0 = x;
+                if (x > x1) x1 = x;
+                if (y < y0) y0 = y;
+                if (y > y1) y1 = y;
+              }
+            }
+            resolve(
+              found
+                ? { x0: x0 / w, y0: y0 / h, x1: (x1 + 1) / w, y1: (y1 + 1) / h }
+                : null
+            );
+          };
+          img.src = src;
+        })
+    );
+
+    return Promise.all(jobs).then((boxes) => {
+      const found = boxes.filter(Boolean);
+      if (!found.length) return;
+      samArtBox = {
+        x0: Math.min(...found.map((b) => b.x0)),
+        y0: Math.min(...found.map((b) => b.y0)),
+        x1: Math.max(...found.map((b) => b.x1)),
+        y1: Math.max(...found.map((b) => b.y1)),
+      };
+      applySamShift();
+      // Numbers were laid out against a wider box — redo it while nothing is cleared.
+      if (clearedCount === 0) {
+        layoutWidth = 0;
+        layoutHeight = 0;
+        buildScene();
+      }
+    });
+  }
+
+  /**
+   * Eight brush icons on Peggy's face only (normalized 0–1 in the scene art).
+   * Cheeks, snout and chin — not the ears, and not the room around her.
+   */
+  const FACE_ART_SPOTS = [
+    { u: 0.307, v: 0.501 },
+    { u: 0.492, v: 0.501 },
+    { u: 0.677, v: 0.501 },
+    { u: 0.285, v: 0.695 },
+    { u: 0.492, v: 0.695 },
+    { u: 0.700, v: 0.695 },
+    { u: 0.384, v: 0.856 },
+    { u: 0.600, v: 0.856 },
+  ];
+
+  /** Scene art pixel → stage pixel, matching drawImageCover (xMidYMid slice). */
+  function artSpotToStage(u, v, width, height) {
+    const iw = stateAImage.naturalWidth || 2573;
+    const ih = stateAImage.naturalHeight || 1228;
+    const scale = Math.max(width / iw, height / ih);
+    const sx = (iw - width / scale) * 0.5;
+    const sy = (ih - height / scale) * 0.5;
+    return {
+      x: (u * iw - sx) * scale,
+      y: (v * ih - sy) * scale,
+    };
+  }
+
+  /** The tap icons, in stage pixels, all inside the face. */
+  function faceIconSpots(width, height) {
+    return FACE_ART_SPOTS.map((s) => artSpotToStage(s.u, s.v, width, height));
+  }
+
+  /** Sites sit on the face so each numbered brush is on Peggy, not the room. */
+  function createSpreadSiteLayout(count, width, height) {
+    const spots = faceIconSpots(width, height).slice(0, count);
+    while (spots.length < count) spots.push(spots[spots.length - 1]);
+    return spots.map((p) => ({ nx: p.x / width, ny: p.y / height }));
+  }
+
+  /** Gap between a number at `p` and the closest already-placed one. */
+  function iconSeparation(p, placed) {
+    let worst = Infinity;
+    for (const o of placed) {
+      const gapX = Math.abs(p.x - o.x) - ICON_SIZE_PX;
+      const gapY =
+        Math.abs(p.y - o.y) - (ICON_EXTENT_TOP_PX + ICON_EXTENT_BOTTOM_PX);
+      worst = Math.min(worst, Math.max(gapX, gapY));
+    }
+    return worst;
+  }
+
+  function iconSpotFree(p, placed, gap) {
+    return iconSeparation(p, placed) >= (gap === undefined ? ICON_MIN_GAP_PX : gap);
+  }
+
+  function closestTo(anchor, points) {
+    let best = null;
+    let bestDist = Infinity;
+    for (const p of points) {
+      const d = Math.hypot(p.x - anchor.x, p.y - anchor.y);
+      if (d < bestDist) {
+        bestDist = d;
+        best = p;
+      }
+    }
+    return best;
+  }
+
+  function distanceToSegment(p, a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const lenSq = dx * dx + dy * dy;
+    const t =
+      lenSq > 0
+        ? Math.max(
+            0,
+            Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq)
+          )
+        : 0;
+    return Math.hypot(p.x - (a.x + dx * t), p.y - (a.y + dy * t));
+  }
+
+  function distanceToPolygonEdge(p, polygon) {
+    let best = Infinity;
+    for (let i = 0; i < polygon.length; i++) {
+      const a = polygon[i];
+      const b = polygon[(i + 1) % polygon.length];
+      best = Math.min(best, distanceToSegment(p, a, b));
+    }
+    return best;
+  }
+
+  function distanceOutsideRect(p, r) {
+    const dx = Math.max(r.x - p.x, p.x - (r.x + r.w), 0);
+    const dy = Math.max(r.y - p.y, p.y - (r.y + r.h), 0);
+    return Math.hypot(dx, dy);
+  }
+
+  /** How much room a spot has before it hits the piece rim, Sam or the frame. */
+  function clearanceAt(p, cell, b) {
+    let room = Math.min(
+      distanceToPolygonEdge(p, cell.polygon),
+      p.x - b.minX,
+      b.maxX - p.x,
+      p.y - b.minY,
+      b.maxY - p.y
+    );
+    const sam = samRect();
+    if (sam) {
+      room = Math.min(
+        room,
+        distanceOutsideRect(p, {
+          x: sam.x - SAM_CLEAR_PX - ICON_HALF_W_PX,
+          y: sam.y - SAM_CLEAR_PX - ICON_EXTENT_BOTTOM_PX,
+          w: sam.w + (SAM_CLEAR_PX + ICON_HALF_W_PX) * 2,
+          h: sam.h + SAM_CLEAR_PX * 2 + ICON_EXTENT_TOP_PX + ICON_EXTENT_BOTTOM_PX,
+        })
+      );
+    }
+    return room;
+  }
+
+  /**
+   * Middle of the part of a piece a number may use. Spots that clear their
+   * neighbours always win; among those, the one furthest from the piece rim
+   * and from Sam reads as the centre of what is left of the piece.
+   */
+  function mostCentralSpot(points, cell, b, placed) {
+    let best = null;
+    let bestScore = -Infinity;
+    for (const p of points) {
+      const score =
+        clearanceAt(p, cell, b) + (iconSpotFree(p, placed) ? 1e4 : 0);
+      if (score > bestScore) {
+        bestScore = score;
+        best = p;
+      }
+    }
+    return best;
+  }
+
+  /** Re-sample around a coarse pick, since the grid step is tens of pixels. */
+  function refineCentralSpot(pick, cell, b, placed, step) {
+    let best = pick;
+    for (let ring = step / 2; ring >= 4; ring /= 2) {
+      const around = [best];
+      for (let iy = -1; iy <= 1; iy++) {
+        for (let ix = -1; ix <= 1; ix++) {
+          if (!ix && !iy) continue;
+          const p = { x: best.x + ix * ring, y: best.y + iy * ring };
+          if (!inIconBounds(p, b)) continue;
+          if (blockedSpot(p)) continue;
+          if (!pointInPolygon(p, cell.polygon)) continue;
+          around.push(p);
+        }
+      }
+      best = mostCentralSpot(around, cell, b, placed) || best;
+    }
+    return best;
+  }
+
+  function inIconBounds(p, b) {
+    return p.x >= b.minX && p.x <= b.maxX && p.y >= b.minY && p.y <= b.maxY;
+  }
+
+  /** Sutherland-Hodgman clip against one edge of the picture. */
+  function clipHalfPlane(polygon, keep, cross) {
+    const out = [];
+    for (let i = 0; i < polygon.length; i++) {
+      const cur = polygon[i];
+      const prev = polygon[(i + polygon.length - 1) % polygon.length];
+      const curIn = keep(cur);
+      const prevIn = keep(prev);
+      if (curIn) {
+        if (!prevIn) out.push(cross(prev, cur));
+        out.push(cur);
+      } else if (prevIn) {
+        out.push(cross(prev, cur));
+      }
+    }
+    return out;
+  }
+
+  function clipPolygonToRect(polygon, x0, y0, x1, y1) {
+    const atX = (a, b, x) => ({
+      x,
+      y: a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x || 1e-6),
+    });
+    const atY = (a, b, y) => ({
+      x: a.x + ((b.x - a.x) * (y - a.y)) / (b.y - a.y || 1e-6),
+      y,
+    });
+    let out = polygon;
+    out = clipHalfPlane(out, (p) => p.x >= x0, (a, b) => atX(a, b, x0));
+    out = clipHalfPlane(out, (p) => p.x <= x1, (a, b) => atX(a, b, x1));
+    out = clipHalfPlane(out, (p) => p.y >= y0, (a, b) => atY(a, b, y0));
+    out = clipHalfPlane(out, (p) => p.y <= y1, (a, b) => atY(a, b, y1));
+    return out;
+  }
+
+  function polygonCentroid(polygon) {
+    let twiceArea = 0;
+    let cx = 0;
+    let cy = 0;
+    for (let i = 0; i < polygon.length; i++) {
+      const p = polygon[i];
+      const q = polygon[(i + 1) % polygon.length];
+      const cross = p.x * q.y - q.x * p.y;
+      twiceArea += cross;
+      cx += (p.x + q.x) * cross;
+      cy += (p.y + q.y) * cross;
+    }
+    if (Math.abs(twiceArea) < 1e-6) return null;
+    return { x: cx / (3 * twiceArea), y: cy / (3 * twiceArea) };
+  }
+
+  /**
+   * The part of a piece a number can actually sit on: pieces bleed past the
+   * picture and run under the header, and those parts must not pull the number
+   * off the visible middle of the piece.
+   */
+  function visiblePart(cell, width, height) {
+    const top = headerBottomPx() + HEADER_CLEARANCE_PX;
+    const clipped = clipPolygonToRect(cell.polygon, 0, top, width, height);
+    return clipped.length >= 3 ? clipped : cell.polygon;
+  }
+
+  /** Spots inside one piece that are on the picture, below the header, off Sam. */
+  function cellCandidates(cell, width, height) {
+    const b = iconBounds(width, height);
+    const bbox = polygonBBox(visiblePart(cell, width, height));
+    const steps = 18;
+    const spots = [];
+    for (let iy = 0; iy <= steps; iy++) {
+      for (let ix = 0; ix <= steps; ix++) {
+        const p = {
+          x: bbox.minX + (bbox.width * ix) / steps,
+          y: bbox.minY + (bbox.height * iy) / steps,
+        };
+        if (!inIconBounds(p, b)) continue;
+        if (blockedSpot(p)) continue;
+        if (!pointInPolygon(p, cell.polygon)) continue;
+        spots.push(p);
+      }
+    }
+    return spots;
+  }
+
+  /** Nearest free spot anywhere on the picture, for pieces that have none. */
+  function freeSpotNear(anchor, width, height, placed, gap) {
+    const b = iconBounds(width, height);
+    const step = 12;
+    const spots = [];
+    for (let y = b.minY; y <= b.maxY; y += step) {
+      for (let x = b.minX; x <= b.maxX; x += step) {
+        const p = { x, y };
+        if (blockedSpot(p)) continue;
+        if (!iconSpotFree(p, placed, gap)) continue;
+        spots.push(p);
+      }
+    }
+    return closestTo(anchor, spots);
+  }
+
+  /**
+   * Where a piece's number sits: the centre of that piece, unless Sam, the
+   * header or the picture edge takes that spot — then the centre of whatever
+   * of the piece is left.
+   */
+  function iconPointForCell(cell, width, height, placed) {
+    const b = iconBounds(width, height);
+    const middle =
+      polygonCentroid(visiblePart(cell, width, height)) ||
+      cell.centroid ||
+      cell.site;
+    const centre = clampIconPoint(middle.x, middle.y, width, height);
+    const centreUsable =
+      !blockedSpot(centre) && pointInPolygon(centre, cell.polygon);
+
+    if (centreUsable && iconSpotFree(centre, placed)) return centre;
+
+    const inside = cellCandidates(cell, width, height);
+
+    // Only a neighbour is in the way: step off the centre as little as possible.
+    if (centreUsable) {
+      const free = inside.filter((p) => iconSpotFree(p, placed));
+      if (free.length) return closestTo(centre, free);
+    }
+
+    let insidePick = null;
+    if (inside.length) {
+      const bbox = polygonBBox(visiblePart(cell, width, height));
+      const step = Math.max(bbox.width, bbox.height) / 18;
+      insidePick = refineCentralSpot(
+        mostCentralSpot(inside, cell, b, placed),
+        cell,
+        b,
+        placed,
+        step
+      );
+      if (iconSpotFree(insidePick, placed)) return insidePick;
+    }
+
+    // No free spot inside the piece (or Sam / the header covers it):
+    // take the nearest free spot to the piece centre so numbers never overlap.
+    const anchor = insidePick || centre;
+    // If the picture is crowded, accept a smaller gap rather than an overlap
+    // (gap 0 = plates just touch, never overlap).
+    for (const gap of [ICON_MIN_GAP_PX, 20, 12, 6, 0]) {
+      const outside = freeSpotNear(anchor, width, height, placed, gap);
+      if (outside) return outside;
+    }
+    return insidePick || pushOutOfSam(centre, width, height);
+  }
+
+  /** Nearest spot beside or above Sam, so a number is never hidden by him. */
+  function pushOutOfSam(point, width, height) {
+    if (!overlapsSam(point)) return point;
+    const r = samRect();
+    const b = iconBounds(width, height);
+    const beside = {
+      x: Math.min(b.maxX, r.x + r.w + SAM_CLEAR_PX + ICON_HALF_W_PX),
+      y: point.y,
+    };
+    const above = {
+      x: point.x,
+      y: Math.max(b.minY, r.y - SAM_CLEAR_PX - ICON_EXTENT_BOTTOM_PX),
+    };
+    const clear = [beside, above].filter((p) => !overlapsSam(p));
+    if (!clear.length) return { x: beside.x, y: above.y };
+
+    clear.sort(
+      (p, q) =>
+        Math.hypot(p.x - point.x, p.y - point.y) -
+        Math.hypot(q.x - point.x, q.y - point.y)
+    );
+    return clear[0];
+  }
+
+  /** Draw like CSS object-fit: cover — fill the scene, crop overflow. */
+  function drawImageCover(ctx, img, dx, dy, dw, dh) {
+    const iw = img.naturalWidth || img.width;
+    const ih = img.naturalHeight || img.height;
+    if (!iw || !ih || !dw || !dh) return;
+    const scale = Math.max(dw / iw, dh / ih);
+    const sw = dw / scale;
+    const sh = dh / scale;
+    const sx = (iw - sw) * 0.5;
+    const sy = (ih - sh) * 0.5;
+    ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+  }
+
+  function polygonBBox(polygon) {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const p of polygon) {
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x);
+      maxY = Math.max(maxY, p.y);
+    }
+    return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
+  }
+
+  function clearLayers() {
+    svgLayer.innerHTML = "";
+    iconsLayer.innerHTML = "";
+    vfxLayer.innerHTML = "";
+    cellPolygons.clear();
+    cellIconSpots.clear();
+    clearedDustMasks.length = 0;
+    if (dustCanvas) {
+      dustCanvas.remove();
+      dustCanvas = null;
+      dustCtx = null;
+    }
+    dustBase = null;
+  }
+
+  function ensureDustLayer(width, height) {
+    // Dirt / dust overlay removed.
+    if (dustCanvas) {
+      dustCanvas.remove();
+      dustCanvas = null;
+      dustCtx = null;
+    }
+    dustBase = null;
+  }
+
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t += 0x6d2b79f5;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function paintDustAndWebs(ctx, width, height) {
+    ctx.clearRect(0, 0, width, height);
+    const rnd = mulberry32(91 + pieceCount * 13);
+    const minSide = Math.min(width, height);
+
+    const haze = ctx.createRadialGradient(
+      width * 0.45,
+      height * 0.35,
+      minSide * 0.1,
+      width * 0.5,
+      height * 0.5,
+      minSide * 0.85
+    );
+    haze.addColorStop(0, "rgba(185, 170, 145, 0.14)");
+    haze.addColorStop(0.45, "rgba(140, 125, 100, 0.22)");
+    haze.addColorStop(1, "rgba(75, 62, 48, 0.34)");
+    ctx.fillStyle = haze;
+    ctx.fillRect(0, 0, width, height);
+
+    for (let i = 0; i < 3; i++) {
+      const wx = width * (0.12 + i * 0.28);
+      const shaft = ctx.createLinearGradient(wx, 0, wx + width * 0.08, height);
+      shaft.addColorStop(0, "rgba(210, 200, 175, 0.1)");
+      shaft.addColorStop(0.55, "rgba(180, 165, 140, 0.04)");
+      shaft.addColorStop(1, "rgba(180, 165, 140, 0)");
+      ctx.fillStyle = shaft;
+      ctx.beginPath();
+      ctx.moveTo(wx - 20, 0);
+      ctx.lineTo(wx + width * 0.1, 0);
+      ctx.lineTo(wx + width * 0.18, height);
+      ctx.lineTo(wx - width * 0.02, height);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    for (let i = 0; i < 90; i++) {
+      const x = rnd() * width;
+      const y = rnd() * height;
+      const r = 20 + rnd() * 75;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      const a = 0.05 + rnd() * 0.12;
+      g.addColorStop(0, "rgba(165, 148, 120, " + a + ")");
+      g.addColorStop(1, "rgba(165, 148, 120, 0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    for (let i = 0; i < Math.floor(width * height * 0.0014); i++) {
+      const x = rnd() * width;
+      const y = rnd() * height;
+      ctx.fillStyle = "rgba(220, 205, 175, " + (0.12 + rnd() * 0.28) + ")";
+      const s = 0.7 + rnd() * 1.8;
+      ctx.fillRect(x, y, s, s * (0.4 + rnd() * 0.9));
+    }
+  }
+
+  /**
+   * Redraw dust from the pristine base, then punch holes for cleaned areas.
+   * Optional live wipe hole: soft cell ∩ cleared part of wipe matte.
+   */
+  function redrawDust(liveSoft, liveKeepMatte, brushRect) {
+    if (!dustCtx || !dustBase) return;
+    const w = dustCanvas.width;
+    const h = dustCanvas.height;
+    dustCtx.setTransform(1, 0, 0, 1, 0, 0);
+    dustCtx.globalCompositeOperation = "source-over";
+    dustCtx.globalAlpha = 1;
+    dustCtx.clearRect(0, 0, w, h);
+    dustCtx.drawImage(dustBase, 0, 0);
+
+    dustCtx.globalCompositeOperation = "destination-out";
+    clearedDustMasks.forEach((mask) => {
+      dustCtx.drawImage(mask, 0, 0);
+    });
+
+    if (liveSoft && liveKeepMatte && brushRect) {
+      const hole = document.createElement("canvas");
+      hole.width = w;
+      hole.height = h;
+      const hctx = hole.getContext("2d");
+      // White where wipe has already cleared inside the brush footprint.
+      hctx.fillStyle = "#fff";
+      hctx.fillRect(brushRect.x, brushRect.y, brushRect.w, brushRect.h);
+      hctx.globalCompositeOperation = "destination-out";
+      hctx.drawImage(
+        liveKeepMatte,
+        brushRect.x,
+        brushRect.y,
+        brushRect.w,
+        brushRect.h
+      );
+      // Limit to the soft cell silhouette.
+      hctx.globalCompositeOperation = "destination-in";
+      hctx.drawImage(liveSoft, 0, 0);
+      dustCtx.drawImage(hole, 0, 0);
+    } else if (liveSoft) {
+      dustCtx.drawImage(liveSoft, 0, 0);
+    }
+
+    dustCtx.globalCompositeOperation = "source-over";
+  }
+
+  function commitDustHole(softMask) {
+    if (!softMask) return;
+    clearedDustMasks.push(softMask);
+    redrawDust();
+  }
+
+  /**
+   * Warps a shape's outline into a smooth wavy line. Both noise fields are
+   * functions of stage position only, so two pieces sharing a border get warped
+   * identically and their borders stay glued together.
+   */
+  function buildEdgeWarpFilter(id, width, height, warp) {
+    const filter = document.createElementNS(SVG_NS, "filter");
+    filter.setAttribute("id", id);
+    filter.setAttribute("filterUnits", "userSpaceOnUse");
+    filter.setAttribute("x", String(-EDGE_PAD));
+    filter.setAttribute("y", String(-EDGE_PAD));
+    filter.setAttribute("width", String(width + EDGE_PAD * 2));
+    filter.setAttribute("height", String(height + EDGE_PAD * 2));
+
+    const swellNoise = document.createElementNS(SVG_NS, "feTurbulence");
+    swellNoise.setAttribute("type", "fractalNoise");
+    swellNoise.setAttribute("baseFrequency", warp.frequency.toFixed(5));
+    swellNoise.setAttribute("numOctaves", "2");
+    swellNoise.setAttribute("seed", "7");
+    swellNoise.setAttribute("result", "swellNoise");
+
+    const swell = document.createElementNS(SVG_NS, "feDisplacementMap");
+    swell.setAttribute("in", "SourceGraphic");
+    swell.setAttribute("in2", "swellNoise");
+    swell.setAttribute("scale", String(warp.swell));
+    swell.setAttribute("xChannelSelector", "R");
+    swell.setAttribute("yChannelSelector", "G");
+    swell.setAttribute("result", "swelled");
+
+    const rippleNoise = document.createElementNS(SVG_NS, "feTurbulence");
+    rippleNoise.setAttribute("type", "fractalNoise");
+    rippleNoise.setAttribute("baseFrequency", (warp.frequency * 3.2).toFixed(5));
+    rippleNoise.setAttribute("numOctaves", "2");
+    rippleNoise.setAttribute("seed", "23");
+    rippleNoise.setAttribute("result", "rippleNoise");
+
+    const crinkle = document.createElementNS(SVG_NS, "feDisplacementMap");
+    crinkle.setAttribute("in", "swelled");
+    crinkle.setAttribute("in2", "rippleNoise");
+    crinkle.setAttribute("scale", String(warp.ripple));
+    crinkle.setAttribute("xChannelSelector", "R");
+    crinkle.setAttribute("yChannelSelector", "G");
+    crinkle.setAttribute("result", "crinkled");
+
+    const blur = document.createElementNS(SVG_NS, "feGaussianBlur");
+    blur.setAttribute("in", "crinkled");
+    blur.setAttribute("stdDeviation", String(EDGE_FADE));
+
+    filter.appendChild(swellNoise);
+    filter.appendChild(swell);
+    filter.appendChild(rippleNoise);
+    filter.appendChild(crinkle);
+    filter.appendChild(blur);
+
+    return filter;
+  }
+
+  function edgeWarpSettings(width, height) {
+    const cellSize = Math.sqrt((width * height) / pieceCount);
+    return {
+      swell: Math.min(72, Math.max(28, cellSize * 0.3)),
+      ripple: Math.min(22, Math.max(9, cellSize * 0.09)),
+      frequency: 1.35 / cellSize,
+    };
+  }
+
+  function appendSharedDefs(defs, width, height) {
+    const warp = edgeWarpSettings(width, height);
+    defs.appendChild(buildEdgeWarpFilter("cell-edge", width, height, warp));
+  }
+
+  /** Smooth value-noise in stage space so shared borders displace identically. */
+  function edgeField(x, y) {
+    return (
+      Math.sin(x * 0.028 + y * 0.023) * 0.5 +
+      Math.sin(x * 0.051 - y * 0.037) * 0.32 +
+      Math.sin(x * 0.013 + y * 0.061) * 0.18
+    );
+  }
+
+  function edgeField2(x, y) {
+    return (
+      Math.sin(x * 0.033 - y * 0.019) * 0.5 +
+      Math.sin(x * 0.017 + y * 0.044) * 0.35 +
+      Math.sin(x * 0.058 + y * 0.011) * 0.15
+    );
+  }
+
+  /**
+   * Densify polygon edges, wave them with stage-space noise (no straight runs),
+   * then emit a Catmull-Rom-smoothed path. Neighbours stay sealed because the
+   * displacement depends only on absolute position.
+   */
+  function organicCellPath(polygon, cornerRadius, waveAmp) {
+    const rounded = densifyRoundedPolygon(polygon, cornerRadius, EDGE_STEP);
+    if (rounded.length < 3) return "";
+
+    const waved = rounded.map((p) => ({
+      x: p.x + edgeField(p.x, p.y) * waveAmp,
+      y: p.y + edgeField2(p.x, p.y) * waveAmp,
+    }));
+
+    return catmullRomPath(waved);
+  }
+
+  function densifyRoundedPolygon(polygon, radius, step) {
+    const n = polygon.length;
+    if (n < 3) return polygon.slice();
+
+    const corners = [];
+    for (let i = 0; i < n; i++) {
+      const prev = polygon[(i + n - 1) % n];
+      const curr = polygon[i];
+      const next = polygon[(i + 1) % n];
+
+      const inLen = Math.hypot(curr.x - prev.x, curr.y - prev.y) || 1;
+      const outLen = Math.hypot(next.x - curr.x, next.y - curr.y) || 1;
+      const rIn = Math.min(radius, inLen * 0.42);
+      const rOut = Math.min(radius, outLen * 0.42);
+
+      const start = {
+        x: curr.x - ((curr.x - prev.x) / inLen) * rIn,
+        y: curr.y - ((curr.y - prev.y) / inLen) * rIn,
+      };
+      const end = {
+        x: curr.x + ((next.x - curr.x) / outLen) * rOut,
+        y: curr.y + ((next.y - curr.y) / outLen) * rOut,
+      };
+
+      // Approximate the corner curve with a few samples so it is not a hard tip.
+      corners.push(start);
+      for (let t = 1; t <= 3; t++) {
+        const u = t / 4;
+        const omu = 1 - u;
+        corners.push({
+          x: omu * omu * start.x + 2 * omu * u * curr.x + u * u * end.x,
+          y: omu * omu * start.y + 2 * omu * u * curr.y + u * u * end.y,
+        });
+      }
+      corners.push(end);
+    }
+
+    const dense = [];
+    for (let i = 0; i < corners.length; i++) {
+      const a = corners[i];
+      const b = corners[(i + 1) % corners.length];
+      dense.push(a);
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      const segs = Math.max(1, Math.ceil(len / step));
+      for (let s = 1; s < segs; s++) {
+        const t = s / segs;
+        dense.push({
+          x: a.x + (b.x - a.x) * t,
+          y: a.y + (b.y - a.y) * t,
+        });
+      }
+    }
+    return dense;
+  }
+
+  function catmullRomPath(points) {
+    const n = points.length;
+    if (n < 2) return "";
+    let d = `M ${fmt(points[0])}`;
+    for (let i = 0; i < n; i++) {
+      const p0 = points[(i - 1 + n) % n];
+      const p1 = points[i];
+      const p2 = points[(i + 1) % n];
+      const p3 = points[(i + 2) % n];
+      const c1 = {
+        x: p1.x + (p2.x - p0.x) / 6,
+        y: p1.y + (p2.y - p0.y) / 6,
+      };
+      const c2 = {
+        x: p2.x - (p3.x - p1.x) / 6,
+        y: p2.y - (p3.y - p1.y) / 6,
+      };
+      d += ` C ${fmt(c1)} ${fmt(c2)} ${fmt(p2)}`;
+    }
+    return `${d} Z`;
+  }
+
+  function fmt(p) {
+    return `${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+  }
+
+  function edgeOutlinePath(cell) {
+    return organicCellPath(
+      VoronoiReveal.expandPolygon(cell.polygon, FEATHER),
+      CORNER_RADIUS,
+      EDGE_WAVE
+    );
+  }
+
+  function createEdgeMask(defs, cell, width, height) {
+    const mask = document.createElementNS(SVG_NS, "mask");
+    mask.setAttribute("id", `cell-edge-mask-${cell.index}`);
+    mask.setAttribute("maskUnits", "userSpaceOnUse");
+    mask.setAttribute("x", String(-EDGE_PAD));
+    mask.setAttribute("y", String(-EDGE_PAD));
+    mask.setAttribute("width", String(width + EDGE_PAD * 2));
+    mask.setAttribute("height", String(height + EDGE_PAD * 2));
+
+    const outline = document.createElementNS(SVG_NS, "path");
+    outline.setAttribute("d", edgeOutlinePath(cell));
+    outline.setAttribute("fill", "#fff");
+    outline.setAttribute("filter", "url(#cell-edge)");
+    mask.appendChild(outline);
+    defs.appendChild(mask);
+  }
+
+  function buildScene() {
+    const { width, height } = getStageSize();
+    if (width === layoutWidth && height === layoutHeight && svgLayer.childElementCount > 0) {
+      return;
+    }
+    layoutWidth = width;
+    layoutHeight = height;
+    hudBoxCache = null;
+
+    clearedCount = 0;
+    stopCelebrationLights(true);
+    setSamHappy(false);
+    applySamShift();
+    const budget = budgetForPieceCount(pieceCount);
+    currency = budget;
+    setCurrencyDisplay(budget, true);
+    rewardScreen.hidden = true;
+    rewardScreen.classList.remove("is-visible");
+
+    clearLayers();
+
+    svgLayer.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svgLayer.setAttribute("preserveAspectRatio", "xMidYMid slice");
+
+    const defs = document.createElementNS(SVG_NS, "defs");
+    svgLayer.appendChild(defs);
+    appendSharedDefs(defs, width, height);
+
+    const piecesRoot = document.createElementNS(SVG_NS, "g");
+    piecesRoot.classList.add("pieces-layer");
+    svgLayer.appendChild(piecesRoot);
+
+    const faceSpots = faceIconSpots(width, height);
+    if (!siteLayout) {
+      siteLayout = createSpreadSiteLayout(pieceCount, width, height);
+    }
+    const cells = VoronoiReveal.computeVoronoi(
+      pieceCount,
+      width,
+      height,
+      siteLayout,
+      -EDGE_BLEED_PX
+    );
+    const cellCosts = costsFromCellAreas(cells);
+
+    // Small pieces have the least room, so they pick their number spot first;
+    // every later number must keep clear of all the ones already placed.
+    const iconSpots = [];
+    const spotByCell = new Map();
+    cells
+      .slice()
+      .sort(
+        (a, c) =>
+          VoronoiReveal.polygonArea(visiblePart(a, width, height)) -
+          VoronoiReveal.polygonArea(visiblePart(c, width, height))
+      )
+      .forEach((cell) => {
+        // The number stays on the face spot. Cell centroids sit outside the
+        // face because each piece also covers the room around Peggy.
+        const spot = faceSpots[cell.index] || iconPointForCell(cell, width, height, iconSpots);
+        iconSpots.push(spot);
+        spotByCell.set(cell.index, spot);
+      });
+
+    cells.forEach((cell) => {
+      cellPolygons.set(cell.index, cell.polygon);
+      createEdgeMask(defs, cell, width, height);
+
+      const group = document.createElementNS(SVG_NS, "g");
+      group.classList.add("cell");
+      group.dataset.cellId = String(cell.index);
+
+      const image = document.createElementNS(SVG_NS, "image");
+      image.setAttributeNS(XLINK_NS, "href", stateAUrl);
+      image.setAttribute("href", stateAUrl);
+      image.setAttribute("x", "0");
+      image.setAttribute("y", "0");
+      image.setAttribute("width", String(width));
+      image.setAttribute("height", String(height));
+      image.setAttribute("preserveAspectRatio", "xMidYMid slice");
+      image.setAttribute("mask", `url(#cell-edge-mask-${cell.index})`);
+
+      group.appendChild(image);
+      piecesRoot.appendChild(group);
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cell-icon";
+      btn.dataset.cellId = String(cell.index);
+      const spot = spotByCell.get(cell.index);
+      cellIconSpots.set(cell.index, spot);
+      btn.style.left = `${spot.x}px`;
+      btn.style.top = `${spot.y}px`;
+      btn.setAttribute("aria-label", `Reveal piece ${cell.index + 1}`);
+
+      const plate = document.createElement("span");
+      plate.className = "cell-icon-plate";
+      btn.appendChild(plate);
+
+      const iconImg = document.createElement("img");
+      iconImg.className = "cell-icon-sku";
+      iconImg.src = iconUrl;
+      iconImg.alt = "";
+      iconImg.draggable = false;
+      btn.appendChild(iconImg);
+
+      const cost = cellCosts[cell.index];
+      const iconLabel = document.createElement("span");
+      iconLabel.className = "cell-icon-label";
+      iconLabel.textContent = String(cost);
+      btn.dataset.cost = String(cost);
+      btn.appendChild(iconLabel);
+
+      btn.addEventListener("click", (event) => onIconTap(cell.index, event));
+      iconsLayer.appendChild(btn);
+    });
+
+    // Dust/dirt overlay disabled.
+    // ensureDustLayer(width, height);
+
+    // A fresh set of pieces: start counting idle time.
+    resetHintTimer();
+  }
+
+  /** Map Voronoi piece areas to integer costs — larger piece → higher cost. */
+  /** The cheapest a piece can be: every number on a piece starts at 5 or more. */
+  const MIN_PIECE_COST = 5;
+
+  function costsFromCellAreas(cells) {
+    const budget = budgetForPieceCount(pieceCount);
+    const n = cells.length;
+    // If the budget were ever too small for the minimum, fall back to a lower floor.
+    const floor = Math.max(1, Math.min(MIN_PIECE_COST, Math.floor(budget / n)));
+    const areas = cells.map((cell) =>
+      Math.max(1, VoronoiReveal.polygonArea(cell.polygon))
+    );
+    const total = areas.reduce((sum, a) => sum + a, 0);
+    // Every piece gets the minimum; the rest of the budget is shared out by area.
+    const spare = budget - floor * n;
+    const raw = areas.map((a) => floor + (a / total) * spare);
+    const costs = raw.map((v) => Math.max(floor, Math.round(v)));
+
+    // Fix rounding so costs sum to the mode budget (never dropping below the minimum).
+    let diff = budget - costs.reduce((sum, c) => sum + c, 0);
+    const order = areas
+      .map((a, i) => ({ a, i }))
+      .sort((x, y) => y.a - x.a);
+    let guard = 0;
+    while (diff !== 0 && guard < 5000) {
+      const idx = order[guard % order.length].i;
+      if (diff > 0) {
+        costs[idx] += 1;
+        diff -= 1;
+      } else if (costs[idx] > floor) {
+        costs[idx] -= 1;
+        diff += 1;
+      }
+      guard += 1;
+    }
+    return costs;
+  }
+
+  /**
+   * Soft cell silhouette matching the SVG edge masks (feather + blur),
+   * so the wipe never flashes hard polygon edges.
+   */
+  function buildSoftCellMask(width, height, polygon) {
+    const soft = document.createElement("canvas");
+    soft.width = width;
+    soft.height = height;
+    const sctx = soft.getContext("2d");
+
+    const outline = organicCellPath(
+      VoronoiReveal.expandPolygon(polygon, FEATHER),
+      CORNER_RADIUS,
+      EDGE_WAVE
+    );
+    const path = new Path2D(outline);
+
+    sctx.filter = `blur(${EDGE_FADE}px)`;
+    sctx.fillStyle = "#fff";
+    sctx.fill(path);
+    sctx.filter = "none";
+
+    return soft;
+  }
+
+  function pointInPolygon(point, polygon) {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const a = polygon[i];
+      const b = polygon[j];
+      const intersects =
+        a.y > point.y !== b.y > point.y &&
+        point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x;
+      if (intersects) inside = !inside;
+    }
+    return inside;
+  }
+
+  function randomPointInPolygon(polygon) {
+    const bbox = polygonBBox(polygon);
+    for (let i = 0; i < 24; i++) {
+      const candidate = {
+        x: bbox.minX + Math.random() * bbox.width,
+        y: bbox.minY + Math.random() * bbox.height,
+      };
+      if (pointInPolygon(candidate, polygon)) return candidate;
+    }
+    return {
+      x: (bbox.minX + bbox.maxX) / 2,
+      y: (bbox.minY + bbox.maxY) / 2,
+    };
+  }
+
+  /**
+   * Soft powder footprint. Alpha falls off early and is blurred again so the
+   * cleaned patch melts into the dirty layer instead of a hard wipe edge.
+   */
+  function buildSpongeStamp(radius) {
+    const size = Math.max(8, Math.ceil(radius * 2));
+    const src = document.createElement("canvas");
+    src.width = size;
+    src.height = size;
+    const sctx = src.getContext("2d");
+    const c = size / 2;
+
+    const grad = sctx.createRadialGradient(c, c, radius * 0.02, c, c, radius);
+    grad.addColorStop(0, "rgba(255,255,255,1)");
+    grad.addColorStop(0.2, "rgba(255,255,255,0.72)");
+    grad.addColorStop(0.46, "rgba(255,255,255,0.34)");
+    grad.addColorStop(0.7, "rgba(255,255,255,0.1)");
+    grad.addColorStop(1, "rgba(255,255,255,0)");
+    sctx.fillStyle = grad;
+    sctx.fillRect(0, 0, size, size);
+
+    const stamp = document.createElement("canvas");
+    stamp.width = size;
+    stamp.height = size;
+    const out = stamp.getContext("2d");
+    out.filter = `blur(${Math.max(6, radius * 0.32)}px)`;
+    out.drawImage(src, 0, 0);
+    out.filter = "none";
+    return stamp;
+  }
+
+  /** Left/right edge of the piece along the horizontal line at y. */
+  function polygonSpanAtY(polygon, y) {
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let i = 0; i < polygon.length; i++) {
+      const p0 = polygon[i];
+      const p1 = polygon[(i + 1) % polygon.length];
+      if ((p0.y <= y && p1.y > y) || (p1.y <= y && p0.y > y)) {
+        const x = p0.x + ((y - p0.y) / (p1.y - p0.y)) * (p1.x - p0.x);
+        lo = Math.min(lo, x);
+        hi = Math.max(hi, x);
+      }
+    }
+    return lo <= hi ? { lo, hi } : null;
+  }
+
+  /** Number of side-to-side sweeps so the brush trail covers the local area. */
+  function brushSweeps(area, stampRadius) {
+    const n = Math.round(area.height / (stampRadius * 1.3));
+    return Math.min(BRUSH_MAX_SWEEPS, Math.max(BRUSH_MIN_SWEEPS, n));
+  }
+
+  /** Header.png box in play-area pixels (null if not on screen). */
+  function headerRectPx() {
+    const header = document.querySelector(".hud-top-wrap");
+    if (!header || !playArea) return null;
+    const h = header.getBoundingClientRect();
+    if (!h.width || !h.height) return null;
+    const pa = playArea.getBoundingClientRect();
+    const k = stageScale();
+    return {
+      x: (h.left - pa.left) / k,
+      y: (h.top - pa.top) / k,
+      w: h.width / k,
+      h: h.height / k,
+    };
+  }
+
+  /** Gap kept between the bottom of Header.png and the top of the brush. */
+  // (a little extra room so the tilted brush corner never slips under it)
+  const BRUSH_HEADER_GAP_PX = 16;
+
+  /**
+   * Square of BRUSH_AREA_PX around the number, trimmed to the piece, where
+   * the brush actually sweeps.
+   */
+  function localBrushArea(polygon, bbox, centre) {
+    const half = BRUSH_AREA_PX / 2;
+    const c = centre || { x: (bbox.minX + bbox.maxX) / 2, y: (bbox.minY + bbox.maxY) / 2 };
+    const minX = Math.max(bbox.minX, c.x - half);
+    const maxX = Math.min(bbox.maxX, c.x + half);
+    const minY = Math.max(bbox.minY, c.y - half);
+    const maxY = Math.min(bbox.maxY, c.y + half);
+    return {
+      minX,
+      maxX: Math.max(minX + 1, maxX),
+      minY,
+      maxY: Math.max(minY + 1, maxY),
+      width: Math.max(1, maxX - minX),
+      height: Math.max(1, maxY - minY),
+    };
+  }
+
+  /** Left/right limits of the sweep at height y, inside the piece and the area. */
+  function brushSpanAt(polygon, area, y) {
+    const span = polygonSpanAtY(polygon, y) || { lo: area.minX, hi: area.maxX };
+    let lo = Math.max(area.minX, span.lo);
+    let hi = Math.min(area.maxX, span.hi);
+    // Beside Header.png (icon in a top corner): while the brush is higher than
+    // the header's bottom, keep its sweeps on its own side of the header.
+    const hb = area.headerBlock;
+    if (hb && y < hb.minTipY + 40) {
+      // Eased over 40px so the sweep width changes smoothly, without a jump.
+      const w = smoothstep((hb.minTipY + 40 - y) / 40);
+      if (hb.side < 0) {
+        const lim = Math.max(lo, hb.x0 - hb.reachRight);
+        hi = Math.min(hi, hi + (lim - hi) * w);
+      } else {
+        const lim = Math.min(hi, hb.x1 + hb.reachLeft);
+        lo = Math.max(lo, lo + (lim - lo) * w);
+      }
+      if (hi < lo) hi = lo;
+    }
+    const inset = Math.min(Math.max(0, hi - lo) * 0.15, 20);
+    const left = lo + inset;
+    return { left, right: Math.max(left, hi - inset) };
+  }
+
+  /**
+   * Plans the brush route so it starts exactly at the icon (start point):
+   * the first sweep leaves from there, the zig-zag first runs to the nearer
+   * edge of the area (top or bottom), then turns and sweeps across to the
+   * far edge.
+   */
+  function planBrushPath(polygon, area, start, stampRadius) {
+    const top = area.minY + area.height * 0.14;
+    const bottom = Math.max(top, area.maxY - area.height * 0.14);
+    const y0 = Math.min(bottom, Math.max(top, start.y));
+    const firstTo = y0 - top <= bottom - y0 ? top : bottom; // nearer edge first
+    const secondTo = firstTo === top ? bottom : top;
+    const leg1 = Math.abs(firstTo - y0);
+    const leg2 = bottom - top;
+    const total = Math.max(1, leg1 + leg2);
+
+    const sweeps = Math.min(
+      BRUSH_MAX_SWEEPS,
+      Math.max(BRUSH_MIN_SWEEPS, Math.round(total / (stampRadius * 1.3)))
+    );
+
+    // Phase of the first sweep so that x starts exactly at the icon.
+    const sp = brushSpanAt(polygon, area, y0);
+    const r =
+      sp.right > sp.left
+        ? Math.min(1, Math.max(0, (start.x - sp.left) / (sp.right - sp.left)))
+        : 0.5;
+    // Head towards the wider side first.
+    const u0 =
+      r < 0.5
+        ? Math.acos(1 - 2 * r) / Math.PI // sweeping right
+        : 1 + Math.acos(1 - 2 * (1 - r)) / Math.PI; // sweeping left
+
+    const plan = { y0, firstTo, secondTo, leg1, total, sweeps, u0, top, bottom, dx0: 0, dy0: 0 };
+    // If the icon stands near the piece edge (outside the sweep zone), the
+    // route still starts exactly at the icon and eases into the zone during
+    // the first sweep.
+    const p0 = brushPathPoint(polygon, area, 0, plan);
+    plan.dx0 = start.x - p0.x;
+    plan.dy0 = start.y - p0.y;
+    return plan;
+  }
+
+  /**
+   * Brush position at sweep progress s (0–1) along the planned route:
+   * side-to-side sweeps that slow down at each turn like a flick of the
+   * wrist, staying inside the piece. dir = +1 sweeping right, -1 left.
+   */
+  function brushPathPoint(polygon, area, s, plan) {
+    const tt = Math.min(0.9999, Math.max(0, s));
+    const u = plan.u0 + tt * plan.sweeps;
+    const i = Math.floor(u);
+    const f = u - i;
+    const ease = 0.5 - 0.5 * Math.cos(Math.PI * f);
+    const dir = i % 2 === 0 ? 1 : -1;
+
+    const dist = tt * plan.total;
+    let y;
+    if (dist <= plan.leg1) {
+      y = plan.y0 + Math.sign(plan.firstTo - plan.y0) * dist;
+    } else {
+      y = plan.firstTo + Math.sign(plan.secondTo - plan.firstTo) * (dist - plan.leg1);
+    }
+    // Slight arc through each sweep (fades in so the very start is exact).
+    y -= Math.sin(Math.PI * f) * Math.min(10, area.height * 0.05) * Math.min(1, tt * 8);
+    y = Math.min(plan.bottom, Math.max(plan.top - 10, y));
+
+    const { left, right } = brushSpanAt(polygon, area, y);
+    let x = dir > 0 ? left + (right - left) * ease : right - (right - left) * ease;
+
+    // Start offset (icon outside the sweep zone) fades out over the first sweep.
+    const w = 1 - smoothstep(tt * plan.sweeps);
+    x += (plan.dx0 || 0) * w;
+    y += (plan.dy0 || 0) * w;
+
+    return { x, y, dir, turn: f };
+  }
+
+  function smoothstep(f) {
+    const c = Math.min(1, Math.max(0, f));
+    return c * c * (3 - 2 * c);
+  }
+
+  /**
+   * Clears a piece: the icon's brush lifts off, sweeps side to side over a
+   * local area around the number kicking up dust clouds, and the rest of the
+   * piece dissolves as the brush finishes.
+   * opts.startRect = where the icon brush was on screen (stage px).
+   */
+  function startBrushWipe(cellId, onDone, opts) {
+    const polygon = cellPolygons.get(cellId);
+    const cellEl = svgLayer.querySelector('.cell[data-cell-id="' + cellId + '"]');
+    if (!polygon || !cellEl) {
+      onDone();
+      return;
+    }
+
+    if (!stateAImage.complete || stateAImage.naturalWidth === 0) {
+      cellEl.classList.add("is-gone");
+      commitDustHole(buildSoftCellMask(layoutWidth, layoutHeight, polygon));
+      onDone();
+      return;
+    }
+
+    const width = layoutWidth;
+    const height = layoutHeight;
+    const softEdge = buildSoftCellMask(width, height, polygon);
+    const bbox = polygonBBox(polygon);
+    const centre = cellIconSpots.get(cellId) || null;
+    const area = localBrushArea(polygon, bbox, centre);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.className = "brush-wipe-canvas";
+    vfxLayer.appendChild(canvas);
+    const ctx = canvas.getContext("2d");
+
+    const fxLayer = document.createElement("div");
+    fxLayer.className = "brush-fx";
+    vfxLayer.appendChild(fxLayer);
+
+    const aspect =
+      brushImage.naturalWidth > 0 ? brushImage.naturalHeight / brushImage.naturalWidth : 1;
+    const brushW = BRUSH_SIZE_PX;
+    const brushH = BRUSH_SIZE_PX * aspect;
+    const tipX = brushW * BRUSH_TIP.x;
+    const tipY = brushH * BRUSH_TIP.y;
+
+    // The brush never goes under Header.png: where the brushed area lies
+    // below the header, the whole brush (handle included) stays under its
+    // bottom edge, so a piece under the header is only brushed below it.
+    // Whatever is left under the header dissolves at the end, as usual.
+    // Where the icon brush sat: the sprite starts exactly there, at icon size.
+    const startRect = opts && opts.startRect;
+    const startScale = startRect ? Math.max(0.2, startRect.w / brushW) : 0.8;
+    const startTip = startRect
+      ? { x: startRect.x + startRect.w * BRUSH_TIP.x, y: startRect.y + startRect.h * BRUSH_TIP.y }
+      : centre || { x: area.minX, y: area.minY };
+
+    let minTipY = -Infinity;
+    let headerSideX = null;
+    const header = headerRectPx();
+    if (header) {
+      const reachLeft = tipX + 10;
+      const reachRight = brushW - tipX + 10;
+      const overlapsHeaderX =
+        area.minX - reachLeft < header.x + header.w &&
+        area.maxX + reachRight > header.x;
+      // Is the icon itself below the header, or beside it in a top corner?
+      const iconBesideHeader =
+        startTip.y - tipY * startScale < header.y + header.h + BRUSH_HEADER_GAP_PX &&
+        (startTip.x + reachRight * startScale <= header.x ||
+          startTip.x - reachLeft * startScale >= header.x + header.w);
+      if (overlapsHeaderX && iconBesideHeader) {
+        // Brush stays on its side of the header instead of being pushed down.
+        headerSideX = {
+          x0: header.x,
+          x1: header.x + header.w,
+          minTipY: header.y + header.h + BRUSH_HEADER_GAP_PX + tipY,
+        };
+        // Extra room for the brush leaning up to ~22° while it sweeps.
+        const lean = brushH * 0.4;
+        headerSideX.side = startTip.x < header.x + header.w / 2 ? -1 : 1;
+        area.headerBlock = {
+          minTipY: headerSideX.minTipY,
+          x0: header.x,
+          x1: header.x + header.w,
+          side: headerSideX.side,
+          reachLeft: reachLeft + lean,
+          reachRight: reachRight + lean,
+        };
+      } else if (overlapsHeaderX) {
+        minTipY = header.y + header.h + BRUSH_HEADER_GAP_PX + tipY;
+        // The first sweep row sits 14% into the area, so start the area a bit higher.
+        const needTop = minTipY;
+        if (area.minY + area.height * 0.14 < needTop) {
+          const bottom = Math.max(area.maxY, needTop + 60);
+          const newMin = Math.max(area.minY, (needTop - 0.14 * bottom) / 0.86);
+          area.minY = newMin;
+          area.maxY = bottom;
+          area.height = Math.max(1, area.maxY - area.minY);
+        }
+      }
+    }
+
+    const brushEl = document.createElement("img");
+    brushEl.className = "brush-sprite";
+    brushEl.src = brushImage.src;
+    brushEl.alt = "";
+    brushEl.draggable = false;
+    brushEl.style.width = `${brushW}px`;
+    brushEl.style.height = `${brushH}px`;
+    // Rotate around the bristles, not the middle of the picture.
+    brushEl.style.transformOrigin = `${tipX}px ${tipY}px`;
+    fxLayer.appendChild(brushEl);
+
+    // Swept-away dust accumulates here and is punched out of the piece.
+    const swept = document.createElement("canvas");
+    swept.width = width;
+    swept.height = height;
+    const sweptCtx = swept.getContext("2d");
+
+    const stampRadius = BRUSH_TRAIL_RADIUS_PX;
+    const stamp = buildSpongeStamp(stampRadius);
+    // The bristles leave a wide, flat trail.
+    const stampW = stampRadius * 2.5;
+    const stampH = stampRadius * 1.7;
+    const stampStep = stampRadius * 0.3;
+    // The route starts exactly where the icon brush stood.
+    const plan = planBrushPath(polygon, area, startTip, stampRadius);
+
+    let finished = false;
+    let svgHidden = false;
+    let rafId = 0;
+    let prevS = 0;
+    let lastPuffAt = 0;
+    let tilt = 0;
+    const wipeClockStart = performance.now();
+
+    function wipeProgress() {
+      return Math.min(
+        1,
+        Math.max(0, (performance.now() - wipeClockStart) / WIPE_MS)
+      );
+    }
+
+    /** Sweep progress (0–1) inside the sweeping part of the timeline. */
+    function sweepProgress(t) {
+      return Math.min(
+        1,
+        Math.max(0, (t - BRUSH_PICKUP_END) / (BRUSH_SWEEP_END - BRUSH_PICKUP_END))
+      );
+    }
+
+    function cleanup() {
+      if (finished) return;
+      finished = true;
+      cancelAnimationFrame(rafId);
+      canvas.remove();
+      fxLayer.remove();
+      commitDustHole(softEdge);
+      onDone();
+    }
+
+    /** Stamp the bristle footprint along the path travelled since last frame. */
+    function sweepSegment(fromS, toS) {
+      const a = brushPathPoint(polygon, area, fromS, plan);
+      const b = brushPathPoint(polygon, area, toS, plan);
+      if (toS <= fromS) return b;
+      const steps = Math.max(
+        1,
+        Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / stampStep)
+      );
+      sweptCtx.globalCompositeOperation = "source-over";
+      for (let i = 1; i <= steps; i++) {
+        const p = brushPathPoint(polygon, area, fromS + (toS - fromS) * (i / steps), plan);
+        sweptCtx.drawImage(stamp, p.x - stampW / 2, p.y - stampH / 2, stampW, stampH);
+      }
+      return b;
+    }
+
+    /** Dust clouds kicked up ahead of the bristles, drifting the way the brush moves. */
+    function emitPuffs(p) {
+      const now = performance.now();
+      if (now - lastPuffAt < 45) return;
+      lastPuffAt = now;
+      const atTurn = p.turn > 0.85;
+      const count = atTurn ? 2 : 1 + (Math.random() < 0.5 ? 1 : 0);
+      for (let i = 0; i < count; i++) {
+        const ahead = p.dir * (stampRadius * (0.5 + Math.random() * 0.7));
+        const spreadY = (Math.random() - 0.5) * stampRadius * 1.3;
+        spawnDustPuff(fxLayer, p.x + ahead, p.y + spreadY, {
+          size: 16 + Math.random() * (atTurn ? 26 : 18),
+          dx: p.dir * (28 + Math.random() * 40),
+          dy: -(8 + Math.random() * 24) + spreadY * 0.3,
+        });
+      }
+    }
+
+    function renderFrame() {
+      const t = wipeProgress();
+      const sNow = sweepProgress(t);
+      const p = sweepSegment(prevS, sNow);
+      prevS = sNow;
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
+      ctx.clearRect(0, 0, width, height);
+
+      drawImageCover(ctx, stateAImage, 0, 0, width, height);
+      ctx.globalCompositeOperation = "destination-in";
+      ctx.drawImage(softEdge, 0, 0);
+
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.drawImage(swept, 0, 0);
+
+      // The rest of the piece (outside the brushed area) dissolves by the end.
+      if (t > BRUSH_FADE_START) {
+        const f = smoothstep((t - BRUSH_FADE_START) / (1 - BRUSH_FADE_START));
+        ctx.fillStyle = `rgba(0,0,0,${f.toFixed(3)})`;
+        ctx.fillRect(0, 0, width, height);
+      }
+      ctx.globalCompositeOperation = "source-over";
+
+      redrawDust(softEdge);
+
+      // Brush sprite: pick-up from the icon, sweep, then lift off.
+      let bx;
+      let by;
+      let scale;
+      let alpha = 1;
+      let targetTilt;
+      if (t < BRUSH_PICKUP_END) {
+        // Grows from icon size right where the icon brush stood, then the
+        // first sweep leaves from that same point.
+        const k = smoothstep(t / BRUSH_PICKUP_END);
+        const p0 = brushPathPoint(polygon, area, 0, plan);
+        bx = startTip.x + (p0.x - startTip.x) * k;
+        by = startTip.y + (p0.y - startTip.y) * k;
+        scale = startScale + (1 - startScale) * k;
+        targetTilt = 0;
+      } else if (t < BRUSH_SWEEP_END) {
+        bx = p.x;
+        by = p.y;
+        scale = 1;
+        targetTilt = p.dir * 22 * Math.sin(Math.PI * Math.min(1, p.turn * 1.15 + 0.1));
+        emitPuffs(p);
+      } else {
+        const k = smoothstep((t - BRUSH_SWEEP_END) / (1 - BRUSH_SWEEP_END));
+        bx = p.x;
+        by = p.y - k * 40;
+        scale = 1 - 0.15 * k;
+        alpha = 1 - k;
+        targetTilt = 0;
+      }
+      // Keep the brush top under Header.png. The limit follows the brush's
+      // current size, so at the start the small icon brush stays exactly
+      // where it stood and is only eased down as it grows (if it has to).
+      const tipLimit = minTipY - tipY * (1 - scale);
+      if (by < tipLimit) by = tipLimit;
+      if (headerSideX) {
+        // Beside the header: never slide sideways under it (leaning included).
+        const sideLimit = headerSideX.minTipY - tipY * (1 - scale);
+        if (by < sideLimit) {
+          // Room for the brush's current lean (none at the very start, so the
+          // icon brush starts exactly where it stood).
+          const lean = brushH * scale * Math.sin((Math.abs(tilt) * Math.PI) / 180) + 4;
+          if (headerSideX.side < 0) {
+            bx = Math.min(bx, headerSideX.x0 - (brushW - tipX) * scale - lean);
+          } else {
+            bx = Math.max(bx, headerSideX.x1 + tipX * scale + lean);
+          }
+        }
+      }
+      tilt += (targetTilt - tilt) * 0.35;
+      brushEl.style.transform = [
+        `translate(${(bx - tipX).toFixed(1)}px, ${(by - tipY).toFixed(1)}px)`,
+        `rotate(${tilt.toFixed(2)}deg)`,
+        `scale(${scale.toFixed(3)})`,
+      ].join(" ");
+      brushEl.style.opacity = alpha.toFixed(3);
+
+      if (!svgHidden) {
+        cellEl.classList.add("is-gone");
+        svgHidden = true;
+      }
+    }
+
+    function tick() {
+      if (finished) return;
+      renderFrame();
+      if (wipeProgress() >= 1) {
+        // Last of the dust puffs off as the piece finishes.
+        burstDustPuffs(
+          vfxLayer,
+          (area.minX + area.maxX) / 2,
+          (area.minY + area.maxY) / 2,
+          7,
+          Math.min(area.width, area.height) * 0.35
+        );
+        playSpongeSparkles(bbox);
+        cleanup();
+        return;
+      }
+      rafId = requestAnimationFrame(tick);
+    }
+
+    renderFrame();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  /** Few clean-shine sparkles once a piece is scrubbed. */
+  function playSpongeSparkles(bbox) {
+    const layer = document.createElement("div");
+    layer.className = "sponge-sparkles";
+    vfxLayer.appendChild(layer);
+
+    const count = 5;
+    let maxLife = 0;
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement("span");
+      const size = 12 + Math.random() * 14;
+      const dur = 460 + Math.random() * 320;
+      const delay = Math.random() * 260;
+      el.className = "sponge-sparkle";
+      el.style.width = `${size}px`;
+      el.style.height = `${size}px`;
+      el.style.left = `${bbox.minX + Math.random() * bbox.width}px`;
+      el.style.top = `${bbox.minY + Math.random() * bbox.height}px`;
+      el.style.setProperty("--sparkle-dur", `${dur}ms`);
+      el.style.setProperty("--sparkle-delay", `${delay}ms`);
+      layer.appendChild(el);
+      maxLife = Math.max(maxLife, dur + delay);
+    }
+    window.setTimeout(() => layer.remove(), maxLife + 120);
+  }
+
+  function setCurrencyDisplay(value, immediate) {
+    if (!hudTopCountEl) return;
+    currency = value;
+    if (immediate) {
+      if (currencyAnimRaf) cancelAnimationFrame(currencyAnimRaf);
+      currencyAnimRaf = 0;
+      displayCurrency = value;
+      hudTopCountEl.textContent = String(Math.round(value));
+      return;
+    }
+    animateCurrencyDown(value);
+  }
+
+  /** Tick the HUD counter down to the new total. */
+  function animateCurrencyDown(target) {
+    if (!hudTopCountEl) return;
+    if (currencyAnimRaf) cancelAnimationFrame(currencyAnimRaf);
+
+    const start = displayCurrency;
+    const end = target;
+    if (end >= start) {
+      displayCurrency = end;
+      hudTopCountEl.textContent = String(Math.round(end));
+      currencyAnimRaf = 0;
+      return;
+    }
+
+    const diff = start - end;
+    const duration = Math.min(900, Math.max(380, diff * 14));
+    const t0 = performance.now();
+
+    function tick(now) {
+      const t = Math.min(1, (now - t0) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      displayCurrency = start + (end - start) * eased;
+      hudTopCountEl.textContent = String(Math.round(displayCurrency));
+      if (t < 1) {
+        currencyAnimRaf = requestAnimationFrame(tick);
+      } else {
+        displayCurrency = end;
+        hudTopCountEl.textContent = String(end);
+        currencyAnimRaf = 0;
+      }
+    }
+
+    currencyAnimRaf = requestAnimationFrame(tick);
+  }
+
+  /* ---------- Hint: pulse the numbers when the player is idle ---------- */
+  /** Seconds-worth of idle time before the numbers pulse (ms). */
+  const HINT_IDLE_MS = 3000;
+  /** How many pulses, and how long one pulse takes (ms) — keep in sync with .cell-icon.is-hint in the CSS. */
+  const HINT_PULSES = 2;
+  const HINT_PULSE_MS = 750;
+  /** After the pulses, wait for another idle period and pulse again (false: only once per scene). */
+  const HINT_REPEAT = true;
+
+  let hintTimer = 0;
+  let hintEndTimer = 0;
+
+  function hintBlocked() {
+    return celebrating || rewardOpen || replayOpen || transitionBusy || splashOpen;
+  }
+
+  function stopHint() {
+    window.clearTimeout(hintTimer);
+    window.clearTimeout(hintEndTimer);
+    iconsLayer
+      .querySelectorAll(".cell-icon.is-hint")
+      .forEach((el) => el.classList.remove("is-hint"));
+  }
+
+  /** Call whenever the player does something with the pieces (or a new scene starts). */
+  function resetHintTimer() {
+    stopHint();
+    hintTimer = window.setTimeout(playHint, HINT_IDLE_MS);
+  }
+
+  function playHint() {
+    if (hintBlocked()) return;
+    const icons = iconsLayer.querySelectorAll(
+      ".cell-icon:not(.is-gone):not(.is-fading):not(.is-cleaning)"
+    );
+    if (!icons.length) return;
+    icons.forEach((el) => el.classList.add("is-hint"));
+    hintEndTimer = window.setTimeout(() => {
+      icons.forEach((el) => el.classList.remove("is-hint"));
+      if (HINT_REPEAT) resetHintTimer();
+    }, HINT_PULSES * HINT_PULSE_MS + 60);
+  }
+
+  function onIconTap(cellId, event) {
+    // The player is playing: stop the hint and start counting idle time again.
+    resetHintTimer();
+    const cellEl = svgLayer.querySelector(`.cell[data-cell-id="${cellId}"]`);
+    const iconEl = iconsLayer.querySelector(`.cell-icon[data-cell-id="${cellId}"]`);
+
+    if (!cellEl || !iconEl) return;
+    if (
+      cellEl.classList.contains("is-gone") ||
+      cellEl.classList.contains("is-wiping")
+    ) {
+      return;
+    }
+
+    const cost = Number(iconEl.dataset.cost) || 0;
+    setCurrencyDisplay(Math.max(0, currency - cost), false);
+
+    cellEl.classList.add("is-wiping");
+
+    // The icon brush becomes the cleaning brush: remember where it is on
+    // screen, then hide the number and the circle (and the icon itself —
+    // the moving brush takes its place in the same frame).
+    let startRect = null;
+    const skuEl = iconEl.querySelector(".cell-icon-sku");
+    if (skuEl) {
+      const pa = playArea.getBoundingClientRect();
+      const r = skuEl.getBoundingClientRect();
+      const k = stageScale();
+      if (r.width > 0) {
+        startRect = {
+          x: (r.left - pa.left) / k,
+          y: (r.top - pa.top) / k,
+          w: r.width / k,
+          h: r.height / k,
+        };
+      }
+    }
+    iconEl.classList.add("is-cleaning");
+
+    let tapAt = null;
+    if (event && Number.isFinite(event.clientX) && Number.isFinite(event.clientY)) {
+      const rect = playArea.getBoundingClientRect();
+      const k = stageScale();
+      tapAt = {
+        x: (event.clientX - rect.left) / k,
+        y: (event.clientY - rect.top) / k,
+      };
+    }
+
+    const poly = cellPolygons.get(cellId);
+    if (poly) {
+      const bbox = polygonBBox(poly);
+      const ox = tapAt ? tapAt.x : (bbox.minX + bbox.maxX) / 2;
+      const oy = tapAt ? tapAt.y : (bbox.minY + bbox.maxY) / 2;
+      burstDustPuffs(vfxLayer, ox, oy, 4, 18);
+    }
+
+    startBrushWipe(cellId, () => {
+      cellEl.classList.remove("is-wiping");
+      cellEl.classList.add("is-gone");
+      iconEl.classList.add("is-gone");
+      clearedCount += 1;
+      if (clearedCount >= pieceCount) {
+        startSceneComplete();
+      }
+    }, { startRect });
+  }
+
+  function formatReward(n) {
+    return n.toLocaleString("en-US");
+  }
+
+  function clearCelebrate() {
+    if (!celebrateLayer) return;
+    celebrateLayer.classList.remove("is-active");
+    celebrateLayer.innerHTML = "";
+  }
+
+  /** Random point over the picture, below the header (same band as numbers). */
+  function randomScenePoint(width, height, padPx) {
+    const b = iconBounds(width, height);
+    const pad = Math.max(0, padPx || 0);
+    const top = Math.max(0, b.minY - ICON_EXTENT_TOP_PX) + pad;
+    const bottom = Math.min(height, b.maxY + ICON_EXTENT_BOTTOM_PX) - pad;
+    return {
+      x: pad + Math.random() * Math.max(1, width - pad * 2),
+      y: top + Math.random() * Math.max(1, bottom - top),
+    };
+  }
+
+  function playCelebrateFx() {
+    if (!celebrateLayer) return;
+    clearCelebrate();
+    celebrateLayer.classList.add("is-active");
+
+    const width = layoutWidth || getStageSize().width;
+    const height = layoutHeight || getStageSize().height;
+
+    // Soft glow over the picture, kept clear of the header.
+    const glow = document.createElement("div");
+    glow.className = "celebrate-glow";
+    const b = iconBounds(width, height);
+    const glowLeft = 0;
+    const glowRight = width;
+    const glowTop = Math.max(0, b.minY - ICON_EXTENT_TOP_PX);
+    const glowBottom = height;
+    const glowW = Math.max(40, glowRight - glowLeft);
+    const glowH = Math.max(40, glowBottom - glowTop);
+    glow.style.left = `${glowLeft}px`;
+    glow.style.top = `${glowTop}px`;
+    glow.style.width = `${glowW}px`;
+    glow.style.height = `${glowH}px`;
+    celebrateLayer.appendChild(glow);
+
+    const count = 42;
+    for (let i = 0; i < count; i++) {
+      const kind = Math.random();
+      const el = document.createElement("div");
+      const size =
+        kind < 0.3
+          ? 18 + Math.random() * 12
+          : kind < 0.65
+            ? 13 + Math.random() * 9
+            : 8 + Math.random() * 6;
+      const pt = randomScenePoint(width, height, size * 0.4);
+      el.className =
+        kind < 0.4
+          ? "celebrate-sparkle is-star"
+          : kind < 0.72
+            ? "celebrate-sparkle is-glint"
+            : "celebrate-sparkle is-twinkle";
+      el.style.width = `${size}px`;
+      el.style.height = `${size}px`;
+      el.style.left = `${pt.x}px`;
+      el.style.top = `${pt.y}px`;
+      el.style.setProperty("--spark-delay", `${Math.random() * 1000}ms`);
+      el.style.setProperty("--spark-dur", `${840 + Math.random() * 960}ms`);
+      el.style.setProperty("--spark-rot", `${Math.random() * 40 - 20}deg`);
+      celebrateLayer.appendChild(el);
+    }
+  }
+
+  /** Feature end screen. Tap restarts the same scene. */
+  function showRewardScreen() {
+    rewardPopup.src = "assets/MakeOver_Reward_popup_INT.png";
+    rewardScreen.classList.remove("is-makeover", "is-replay");
+    rewardScreen.hidden = false;
+    rewardOpen = true;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => rewardScreen.classList.add("is-visible"));
+    });
+  }
+
+  /** Sam cheers up once the scene is clean. */
+  function setSamHappy(happy) {
+    if (!samEl) return;
+    samEl.classList.toggle("is-happy", happy);
+    if (happy) playSamSparkles();
+  }
+
+  /** Sparkle burst over Sam at the moment he turns happy. */
+  function playSamSparkles() {
+    const rect = samRect();
+    if (!rect) return;
+
+    const layer = document.createElement("div");
+    layer.className = "sam-sparkles";
+    playArea.appendChild(layer);
+
+    let maxLife = 0;
+    for (let i = 0; i < 16; i++) {
+      const el = document.createElement("span");
+      const size = 16 + Math.random() * 22;
+      const dur = 520 + Math.random() * 420;
+      const delay = Math.random() * 520;
+      el.className = "sponge-sparkle";
+      el.style.width = `${size}px`;
+      el.style.height = `${size}px`;
+      el.style.left = `${rect.x + Math.random() * rect.w}px`;
+      el.style.top = `${rect.y + Math.random() * rect.h}px`;
+      el.style.setProperty("--sparkle-dur", `${dur}ms`);
+      el.style.setProperty("--sparkle-delay", `${delay}ms`);
+      layer.appendChild(el);
+      maxLife = Math.max(maxLife, dur + delay);
+    }
+    window.setTimeout(() => layer.remove(), maxLife + 150);
+  }
+
+  /* ---------- Falling gold stars + corner spotlights ---------- */
+  /** Seconds over which the stars keep starting to fall from the top. */
+  const STAR_RAIN_S = 1.8;
+  /** How fast the stars fall: 1 = the old speed, 2 = twice as fast. */
+  const RAIN_SPEED = 2.8;
+  /** Total falling particles over the whole rain. */
+  const RAIN_STARS = 46;
+  const RAIN_SPARKLES = 80;
+  const RAIN_DUST = 190;
+  /** Spotlights: how wide the beam is (radians, half angle of its core). */
+  const BEAM_HALF_ANGLE = 0.15;
+  /** Brightness of the beams, 0–1. */
+  const BEAM_INTENSITY = 0.85;
+  /**
+   * Motion: the beams appear low at the bottom, rise all the way up to the top of
+   * the scene, hold there for a moment, then sink to the very bottom and fade out.
+   * Angles are measured up from the floor, in radians.
+   */
+  const BEAM_LOW_ANGLE = 0.02;
+  const BEAM_RISE_S = 0.9;
+  const BEAM_HOLD_S = 0.25;
+  const BEAM_LOWER_S = 0.8;
+  /** The last part of the descent during which the beams fade out. */
+  const BEAM_END_FADE_S = 0.3;
+  /** How quickly the beams fade when the dark reward screen comes in. */
+  const BEAM_FADE_S = 0.45;
+
+  let fireworkSprites = null;
+
+  function buildFireworkSprites() {
+    if (fireworkSprites) return fireworkSprites;
+
+    // Soft gold dust grain.
+    const dust = document.createElement("canvas");
+    dust.width = dust.height = 32;
+    const dctx = dust.getContext("2d");
+    const dg = dctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    dg.addColorStop(0, "rgba(255,248,205,1)");
+    dg.addColorStop(0.3, "rgba(255,214,90,0.9)");
+    dg.addColorStop(1, "rgba(255,170,30,0)");
+    dctx.fillStyle = dg;
+    dctx.fillRect(0, 0, 32, 32);
+
+    // Five-point gold star with a glow.
+    const star = document.createElement("canvas");
+    star.width = star.height = 72;
+    const sctx = star.getContext("2d");
+    sctx.translate(36, 37);
+    sctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const ang = -Math.PI / 2 + (i * Math.PI) / 5;
+      const r = i % 2 === 0 ? 24 : 10.5;
+      const x = Math.cos(ang) * r;
+      const y = Math.sin(ang) * r;
+      if (i === 0) sctx.moveTo(x, y);
+      else sctx.lineTo(x, y);
+    }
+    sctx.closePath();
+    const sg = sctx.createLinearGradient(0, -24, 0, 24);
+    sg.addColorStop(0, "#fff6bf");
+    sg.addColorStop(0.5, "#ffcf3d");
+    sg.addColorStop(1, "#e69500");
+    sctx.shadowColor = "rgba(255,210,80,0.9)";
+    sctx.shadowBlur = 10;
+    sctx.fillStyle = sg;
+    sctx.fill();
+    sctx.shadowBlur = 0;
+    sctx.lineJoin = "round";
+    sctx.lineWidth = 1.4;
+    sctx.strokeStyle = "rgba(255,244,190,0.9)";
+    sctx.stroke();
+
+    // Thin four-point sparkle glint.
+    const spark = document.createElement("canvas");
+    spark.width = spark.height = 64;
+    const kctx = spark.getContext("2d");
+    kctx.translate(32, 32);
+    const halo = kctx.createRadialGradient(0, 0, 0, 0, 0, 22);
+    halo.addColorStop(0, "rgba(255,250,215,0.9)");
+    halo.addColorStop(0.4, "rgba(255,222,120,0.3)");
+    halo.addColorStop(1, "rgba(255,200,80,0)");
+    kctx.fillStyle = halo;
+    kctx.fillRect(-32, -32, 64, 64);
+    kctx.beginPath();
+    kctx.moveTo(0, -30);
+    kctx.quadraticCurveTo(2.5, -2.5, 30, 0);
+    kctx.quadraticCurveTo(2.5, 2.5, 0, 30);
+    kctx.quadraticCurveTo(-2.5, 2.5, -30, 0);
+    kctx.quadraticCurveTo(-2.5, -2.5, 0, -30);
+    kctx.closePath();
+    kctx.shadowColor = "rgba(255,225,130,1)";
+    kctx.shadowBlur = 8;
+    kctx.fillStyle = "#fffbe6";
+    kctx.fill();
+
+    fireworkSprites = { dust, star, spark };
+    return fireworkSprites;
+  }
+
+  let celebrationFx = null;
+
+  /** Fade out (or remove at once) the spotlights and any stars still falling. */
+  function stopCelebrationLights(immediate) {
+    if (celebrationFx) celebrationFx.stop(immediate);
+  }
+
+  /** The dark reward screen is coming in: the spotlights fade away, stars finish falling. */
+  function dimCelebrationBeams() {
+    if (celebrationFx) celebrationFx.dimBeams();
+  }
+
+  /**
+   * Gold stars, sparkles and dust fall from the top while two soft spotlights in
+   * the bottom corners swing up once, come down from the top to the centre of
+   * the scene and keep shining there until the dark reward screen appears.
+   */
+  function playCelebrationLights() {
+    stopCelebrationLights(true);
+
+    const width = layoutWidth || getStageSize().width;
+    const height = layoutHeight || getStageSize().height;
+    const sprites = buildFireworkSprites();
+
+    const layer = document.createElement("div");
+    layer.className = "spotlight-layer";
+    const canvas = document.createElement("canvas");
+    canvas.className = "spotlight-canvas";
+    // Draw at screen resolution: the stage itself is scaled with a CSS transform.
+    const k = Math.min(3, Math.max(1, stageScale() * (window.devicePixelRatio || 1)));
+    canvas.width = Math.round(width * k);
+    canvas.height = Math.round(height * k);
+    layer.appendChild(canvas);
+    playArea.appendChild(layer);
+    const ctx = canvas.getContext("2d");
+
+    const rand = (a, b) => a + Math.random() * (b - a);
+    const particles = [];
+    const emitted = { star: 0, spark: 0, dust: 0 };
+    const totals = { star: RAIN_STARS, spark: RAIN_SPARKLES, dust: RAIN_DUST };
+
+    function spawn(type) {
+      const base = {
+        type,
+        x: rand(-10, width + 10),
+        y: rand(-30, -8),
+        tw: rand(0, 6.3),
+        rot: rand(-0.4, 0.4),
+        vr: 0,
+      };
+      if (type === "star") {
+        Object.assign(base, {
+          vx: rand(-45, 45), vy: rand(140, 270), gravity: rand(90, 160),
+          size: rand(15, 30), twSpeed: rand(5, 9), rot: rand(0, 6.3), vr: rand(-4, 4),
+        });
+      } else if (type === "spark") {
+        Object.assign(base, {
+          vx: rand(-35, 35), vy: rand(120, 250), gravity: rand(70, 130),
+          size: rand(14, 30), twSpeed: rand(9, 16), vr: rand(-1.2, 1.2),
+        });
+      } else {
+        Object.assign(base, {
+          vx: rand(-25, 25), vy: rand(110, 260), gravity: rand(80, 150),
+          size: rand(5, 12), twSpeed: rand(10, 22),
+        });
+      }
+      base.vy *= RAIN_SPEED;
+      base.gravity *= RAIN_SPEED * RAIN_SPEED;
+      base.age = 0;
+      particles.push(base);
+    }
+
+    // Beam geometry: pivots just outside the bottom corners, aimed at the middle.
+    const centre = { x: width / 2, y: height * 0.5 };
+    const topPoint = { x: width / 2, y: -10 };
+    const pivots = [
+      { x: -8, y: height + 8, dir: 1 }, // left corner, shines to the right
+      { x: width + 8, y: height + 8, dir: -1 }, // right corner, shines to the left
+    ];
+    pivots.forEach((p) => {
+      // Elevation (up from the floor) of the line to the top-centre of the scene.
+      p.topElev = Math.atan2(p.y - topPoint.y, Math.abs(topPoint.x - p.x));
+    });
+    const beamLen = Math.hypot(topPoint.x - pivots[0].x, topPoint.y - pivots[0].y) * 1.2;
+
+    /**
+     * One soft, scattered beam painted once into its own canvas (pointing right,
+     * pivot at the left middle). Many faint cones of different widths blend into a
+     * smooth falloff, and soft haze blobs along the axis make the light look diffused.
+     */
+    function buildBeamSprite() {
+      const maxHa = BEAM_HALF_ANGLE * 1.9;
+      const hStage = 2 * beamLen * Math.sin(maxHa) + 40;
+      const sp = document.createElement("canvas");
+      sp.width = Math.ceil(beamLen * k);
+      sp.height = Math.ceil(hStage * k);
+      const c = sp.getContext("2d");
+      c.scale(k, k);
+      c.translate(0, hStage / 2);
+      c.globalCompositeOperation = "lighter";
+
+      const CONES = 16;
+      for (let i = 0; i < CONES; i++) {
+        const f = i / (CONES - 1);
+        // From a very wide faint cone down to a narrow brighter core.
+        const ha = maxHa * (1 - f * 0.92);
+        const a = 0.026 + 0.03 * f;
+        const g = c.createLinearGradient(0, 0, beamLen, 0);
+        g.addColorStop(0, `rgba(255,248,222,${Math.min(1, a * 2.2).toFixed(3)})`);
+        g.addColorStop(0.4, `rgba(255,230,150,${(a * 1.5).toFixed(3)})`);
+        g.addColorStop(1, "rgba(255,215,110,0)");
+        c.fillStyle = g;
+        c.beginPath();
+        c.moveTo(0, 0);
+        c.lineTo(Math.cos(-ha) * beamLen, Math.sin(-ha) * beamLen);
+        c.lineTo(Math.cos(ha) * beamLen, Math.sin(ha) * beamLen);
+        c.closePath();
+        c.fill();
+      }
+
+      // Haze: big soft blobs along the beam, wider the further they are from the lamp.
+      for (let i = 0; i < 9; i++) {
+        const x = beamLen * (0.08 + i * 0.1);
+        const r = 45 + x * 0.3;
+        const fall = 1 - x / beamLen;
+        const g = c.createRadialGradient(x, 0, 0, x, 0, r);
+        g.addColorStop(0, `rgba(255,236,170,${(0.1 * fall + 0.02).toFixed(3)})`);
+        g.addColorStop(1, "rgba(255,220,130,0)");
+        c.fillStyle = g;
+        c.fillRect(x - r, -r, r * 2, r * 2);
+      }
+
+      // Lamp glow at the pivot.
+      const lr = 120;
+      const lamp = c.createRadialGradient(0, 0, 0, 0, 0, lr);
+      lamp.addColorStop(0, "rgba(255,250,228,0.7)");
+      lamp.addColorStop(0.35, "rgba(255,228,140,0.28)");
+      lamp.addColorStop(1, "rgba(255,200,80,0)");
+      c.fillStyle = lamp;
+      c.fillRect(-lr, -lr, lr * 2, lr * 2);
+      return sp;
+    }
+    const beamSprite = buildBeamSprite();
+
+    /** 0 = beam lying along the floor, 1 = beam aimed at the top of the scene. */
+    const BEAM_TOTAL_S = BEAM_RISE_S + BEAM_HOLD_S + BEAM_LOWER_S;
+    function beamHeight(t) {
+      if (t < BEAM_RISE_S) return smoothstep(t / BEAM_RISE_S);
+      if (t < BEAM_RISE_S + BEAM_HOLD_S) return 1;
+      return 1 - smoothstep((t - BEAM_RISE_S - BEAM_HOLD_S) / BEAM_LOWER_S);
+    }
+
+    const t0 = performance.now();
+    let last = t0;
+    let stopAt = 0;
+    let beamsOffAt = 0;
+    let rafId = 0;
+    let done = false;
+
+    function remove() {
+      if (done) return;
+      done = true;
+      cancelAnimationFrame(rafId);
+      layer.remove();
+      if (celebrationFx === handle) celebrationFx = null;
+    }
+
+    const handle = {
+      dimBeams() {
+        if (!beamsOffAt) beamsOffAt = performance.now();
+      },
+      stop(immediate) {
+        if (immediate) {
+          remove();
+          return;
+        }
+        if (stopAt) return;
+        stopAt = performance.now();
+        layer.classList.add("is-leaving");
+        window.setTimeout(remove, 450);
+      },
+    };
+    celebrationFx = handle;
+
+    function frame(now) {
+      if (done) return;
+      const dt = Math.min(0.034, (now - last) / 1000);
+      last = now;
+      const t = (now - t0) / 1000;
+
+      // Keep the rain going for STAR_RAIN_S seconds (not after the lights are told to stop).
+      if (!stopAt && t < STAR_RAIN_S + 0.001) {
+        const f = Math.min(1, t / STAR_RAIN_S);
+        for (const type of ["star", "spark", "dust"]) {
+          while (emitted[type] < totals[type] * f) {
+            spawn(type);
+            emitted[type] += 1;
+          }
+        }
+      }
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.setTransform(k, 0, 0, k, 0, 0);
+
+      // Spotlights: appear at the bottom, rise to the middle, sink back down and vanish.
+      // (They also fade at once if the dark reward screen comes in early.)
+      const on = smoothstep(t / 0.2);
+      const endFade = 1 - smoothstep((t - (BEAM_TOTAL_S - BEAM_END_FADE_S)) / BEAM_END_FADE_S);
+      const off = beamsOffAt ? 1 - Math.min(1, (now - beamsOffAt) / 1000 / BEAM_FADE_S) : 1;
+      const intensity = BEAM_INTENSITY * on * endFade * off * (0.96 + 0.04 * Math.sin(t * 3.1));
+      const height01 = beamHeight(t);
+      if (intensity > 0.004) {
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = Math.min(1, intensity);
+        for (const p of pivots) {
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          const elev = BEAM_LOW_ANGLE + (p.topElev - BEAM_LOW_ANGLE) * height01;
+          ctx.rotate(Math.atan2(-Math.sin(elev), p.dir * Math.cos(elev)));
+          ctx.drawImage(beamSprite, 0, -beamSprite.height / (2 * k), beamSprite.width / k, beamSprite.height / k);
+          ctx.restore();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // Falling stars, sparkles and dust.
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.age += dt;
+        p.vy = p.vy * Math.exp(-0.35 * dt) + p.gravity * dt;
+        p.x += (p.vx + Math.sin(p.tw + p.age * 2.2) * 22) * dt;
+        p.y += p.vy * dt;
+        p.rot += p.vr * dt;
+        if (p.y > height + 40) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        const fadeIn = Math.min(1, p.age / 0.15);
+        const fadeOut = 1 - smoothstep((p.y - (height - 90)) / 110);
+        const alpha = Math.max(0, fadeIn * fadeOut);
+        let size = p.size;
+
+        if (p.type === "dust") {
+          ctx.globalCompositeOperation = "lighter";
+          ctx.globalAlpha = alpha * (0.6 + 0.4 * Math.sin(p.tw + p.age * p.twSpeed));
+          ctx.drawImage(sprites.dust, p.x - size / 2, p.y - size / 2, size, size);
+        } else if (p.type === "spark") {
+          size *= 0.55 + 0.6 * Math.abs(Math.sin(p.tw + p.age * p.twSpeed));
+          ctx.globalCompositeOperation = "lighter";
+          ctx.globalAlpha = alpha;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+          ctx.drawImage(sprites.spark, -size / 2, -size / 2, size, size);
+          ctx.restore();
+        } else {
+          const flutter = 0.45 + 0.55 * Math.abs(Math.cos(p.tw + p.age * p.twSpeed));
+          ctx.globalCompositeOperation = "source-over";
+          ctx.globalAlpha = alpha;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+          ctx.scale(flutter, 1);
+          ctx.drawImage(sprites.star, -size / 2, -size / 2, size, size);
+          ctx.restore();
+          ctx.globalCompositeOperation = "lighter";
+          ctx.globalAlpha = alpha * 0.6 * Math.abs(Math.sin(p.tw * 2 + p.age * 14));
+          const gs = size * 1.2;
+          ctx.drawImage(sprites.spark, p.x - gs / 2, p.y - gs / 2, gs, gs);
+        }
+      }
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
+
+      // Once the beams are gone and the last star has fallen, the layer is done.
+      if ((t > BEAM_TOTAL_S || off <= 0) && !particles.length && t > STAR_RAIN_S) {
+        remove();
+        return;
+      }
+      rafId = requestAnimationFrame(frame);
+    }
+
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function startSceneComplete() {
+    if (celebrating || rewardOpen) return;
+    celebrating = true;
+    setSamHappy(true);
+    // No corner spotlights or projector beams — go straight to the reward.
+    stopCelebrationLights(true);
+    clearCelebrate();
+    window.setTimeout(() => {
+      celebrating = false;
+      showRewardScreen();
+    }, 420);
+  }
+
+  /** Is the scene on screen the last one of the whole run? */
+  function isLastGame() {
+    return gameIndex === GAME_PIECES.length - 1;
+  }
+
+  /** A tap on the reward screen restarts the only scene. */
+  function loadNextScene() {
+    if (!rewardOpen || transitionBusy) return;
+    rewardOpen = false;
+    replayOpen = false;
+    stopCelebrationLights(false);
+    startNextGame(true);
+  }
+
+  /** Resolves once the pictures of the scene that was just set up are loaded (or after a short wait). */
+  function sceneImagesReady() {
+    return new Promise((resolve) => {
+      const images = [stateAImage, stateBImg].filter(Boolean);
+      const startedAt = performance.now();
+      (function check() {
+        const ready = images.every((img) => img.complete && img.naturalWidth > 0);
+        if (ready || performance.now() - startedAt > 1500) resolve();
+        else window.setTimeout(check, 40);
+      })();
+    });
+  }
+
+  let transitionBusy = false;
+
+  /**
+   * Fade the screen to black, change what is behind it, fade back in.
+   * `change` runs while the screen is fully black.
+   */
+  function fadeThroughBlack(change) {
+    if (transitionBusy) return;
+    transitionBusy = true;
+    blackout.classList.add("is-on");
+    window.setTimeout(async () => {
+      change();
+      await sceneImagesReady();
+      window.setTimeout(() => {
+        blackout.classList.remove("is-on");
+        window.setTimeout(() => {
+          transitionBusy = false;
+        }, 520);
+      }, 300);
+    }, 540);
+  }
+
+  /** Go to the next game (or the very first one again), through a black screen. */
+  function startNextGame(fromStart) {
+    fadeThroughBlack(() => {
+      rewardScreen.hidden = true;
+      rewardScreen.classList.remove("is-visible", "is-replay", "is-makeover");
+      // Next game: more pieces (and the same number of icons).
+      gameIndex = fromStart ? 0 : (gameIndex + 1) % GAME_PIECES.length;
+      pieceCount = GAME_PIECES[gameIndex];
+      sceneIndex = fromStart ? 0 : (sceneIndex + 1) % SCENES.length;
+      applySceneArt(SCENES[sceneIndex]);
+      siteLayout = null;
+      layoutWidth = 0;
+      layoutHeight = 0;
+      buildScene();
+    });
+  }
+
+  /** Replay pressed: back to the very first screen, everything starts over. */
+  function restartGame() {
+    if (!replayOpen || transitionBusy) return;
+    replayOpen = false;
+    startNextGame(true);
+  }
+
+  function init() {
+    fitPlayAreaToArt();
+    buildScene();
+    measureSamArt();
+
+    rewardScreen.addEventListener("click", loadNextScene);
+    // Start screen: a tap fades through white into the first scene.
+    splash.addEventListener("click", () => {
+      if (!splashOpen || transitionBusy) return;
+      splashOpen = false;
+      transitionBusy = true;
+      whiteout.classList.add("is-on");
+      window.setTimeout(() => {
+        splash.hidden = true;
+        window.setTimeout(() => {
+          whiteout.classList.remove("is-on");
+          resetHintTimer();
+          window.setTimeout(() => {
+            transitionBusy = false;
+          }, 520);
+        }, 250);
+      }, 540);
+    });
+    replayButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      restartGame();
+    });
+
+    const ro = new ResizeObserver(() => {
+      buildScene();
+    });
+    ro.observe(playArea);
+
+    window.addEventListener("orientationchange", () => {
+      window.setTimeout(buildScene, 100);
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+
+  </script>
+  <!-- Phones only: the first tap switches to full screen (Android Chrome) and locks landscape. -->
+  <script>
+    (function () {
+      var root = document.documentElement;
+
+      function goFullScreen() {
+        // iPhone Safari doesn't allow this for pages; use the Home Screen icon.
+        if (!root.classList.contains("is-bare")) return;
+        var req = root.requestFullscreen || root.webkitRequestFullscreen;
+        if (!req || document.fullscreenElement || document.webkitFullscreenElement) return;
+        try {
+          var p = req.call(root);
+          if (p && p.then) {
+            p.then(function () {
+              if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock("landscape").catch(function () {});
+              }
+            }).catch(function () {});
+          }
+        } catch (e) {}
+      }
+
+      document.addEventListener("pointerdown", goFullScreen, { once: true });
+    })();
+  </script>
+</body>
+</html>

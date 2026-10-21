@@ -1,0 +1,903 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Stage: iPhone 17 Pro Max landscape (2868×1320) + 100px height. */
+:root {
+  --device-width: 2868;
+  --device-height: 1420;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #111;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.viewport {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.device {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Debug controls, outside the phone screen. */
+.controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.control-btn {
+  padding: 9px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: #1b2430;
+  color: #e8eef5;
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.control-btn:hover {
+  background: #263346;
+}
+
+.control-btn.is-active {
+  background: #3d6ea8;
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(
+    100vw,
+    calc(var(--device-width) * 1px),
+    calc(100vh * var(--device-width) / var(--device-height))
+  );
+  aspect-ratio: var(--device-width) / var(--device-height);
+  max-height: 100vh;
+  overflow: visible;
+  background: #000;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 18px 50px rgba(0, 0, 0, 0.6);
+  user-select: none;
+}
+
+.play-area {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.hud-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  --hud-btn-h: 68px;
+}
+
+/* Header.png: same height as previous top.png, 20px from top, centered. */
+.hud-top-wrap {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  height: calc(
+    100% * 0.81 * var(--device-width) / var(--device-height) * 347 / 2267
+  );
+  width: auto;
+  aspect-ratio: 1042 / 371;
+  max-width: 92%;
+  line-height: 0;
+  container-type: size;
+}
+
+.hud-top {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center top;
+  display: block;
+  pointer-events: none;
+}
+
+/* Info button: left corner, 30px from left, 68px tall. */
+.hud-info {
+  position: absolute;
+  top: 20px;
+  left: 30px;
+  height: var(--hud-btn-h);
+  width: auto;
+  aspect-ratio: 70 / 73;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  line-height: 0;
+  z-index: 11;
+}
+
+.hud-info img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+
+/* EventSkuMeter: 30px right of info, 68px tall. */
+.hud-meter {
+  position: absolute;
+  top: 10px;
+  left: calc(30px + var(--hud-btn-h) * 70 / 73 + 10px);
+  height: var(--hud-btn-h);
+  width: auto;
+  aspect-ratio: 256 / 114;
+  object-fit: contain;
+  object-position: left center;
+  display: block;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Currency counter overlaid on EventSkuMeter. */
+.hud-top-count {
+  position: absolute;
+  top: 10px;
+  left: calc(30px + var(--hud-btn-h) * 70 / 73 + 30px);
+  height: var(--hud-btn-h);
+  width: calc(var(--hud-btn-h) * 256 / 114);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  color: #fff;
+  font-size: clamp(14px, 2.4vh, 28px);
+  font-weight: 700;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 11;
+}
+
+/* Close button: 68px tall, 30px from right. */
+.hud-close {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  height: var(--hud-btn-h);
+  width: auto;
+  aspect-ratio: 66 / 68;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  line-height: 0;
+  z-index: 11;
+}
+
+.hud-close img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+
+.state-b {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  pointer-events: none;
+}
+
+.voronoi-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.voronoi-layer .cell.is-gone {
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* Sam in the far bottom-left corner; both faces share one box so the swap
+   keeps the exact same position and size. */
+.sam {
+  position: absolute;
+  left: 0;
+  bottom: -10px;
+  height: 74.13%;
+  /* Matches the artwork so the box has no dead space around the character. */
+  aspect-ratio: 640 / 956;
+  pointer-events: none;
+  /* Pulls the transparent padding off-screen so Sam hugs the left edge. */
+  transform: translateX(var(--sam-shift, 0px));
+  /* Above the scene, numbers and the sponge VFX — nothing covers Sam. */
+  z-index: 11;
+}
+
+.sam.is-happy {
+  animation: sam-cheer 620ms cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  transform-origin: 50% 100%;
+}
+
+@keyframes sam-cheer {
+  0% {
+    transform: translateX(var(--sam-shift, 0px)) scale(1);
+  }
+  35% {
+    transform: translateX(var(--sam-shift, 0px)) scale(1.12) translateY(-2%);
+  }
+  100% {
+    transform: translateX(var(--sam-shift, 0px)) scale(1);
+  }
+}
+
+/* Sparkle burst over Sam when he cheers up. */
+.sam-sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+  overflow: visible;
+}
+
+.sam-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: left bottom;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+  transition: opacity 0.35s ease;
+}
+
+.sam-face.is-happy {
+  opacity: 0;
+}
+
+.sam.is-happy .sam-face.is-sad {
+  opacity: 0;
+}
+
+.sam.is-happy .sam-face.is-happy {
+  opacity: 1;
+}
+
+.icons-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: visible;
+}
+
+.vfx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 4;
+}
+
+.dust-layer {
+  display: none !important;
+}
+
+/* wipe7 liquid-splash matte drawn over the piece while it clears. */
+.brush-wipe-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  display: block;
+  z-index: 1;
+}
+
+.sponge-sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.sponge-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+  overflow: visible;
+}
+
+.sponge-sprite {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--sponge-size, 101px);
+  height: var(--sponge-size, 101px);
+  object-fit: contain;
+  opacity: 1;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.45));
+  will-change: transform, opacity;
+  transform-origin: 50% 50%;
+}
+
+.sponge-sparkle {
+  position: absolute;
+  margin: 0;
+  transform: translate(-50%, -50%) scale(0.2);
+  opacity: 0;
+  background: #fff;
+  clip-path: polygon(
+    50% 0%,
+    62% 38%,
+    100% 50%,
+    62% 62%,
+    50% 100%,
+    38% 62%,
+    0% 50%,
+    38% 38%
+  );
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.9));
+  animation: sponge-sparkle-pop var(--sparkle-dur, 560ms) ease-out
+    var(--sparkle-delay, 0ms) forwards;
+}
+
+@keyframes sponge-sparkle-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.15) rotate(0deg);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15) rotate(12deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -58%) scale(0.35) rotate(-8deg);
+  }
+}
+
+/* Wet lather smeared by the sponge; fades a few frames behind it. */
+.sponge-foam-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  display: block;
+  z-index: 2;
+}
+
+/* Soap bubbles: iridescent shell, rise off the sponge and pop. */
+.soap-bubble {
+  position: absolute;
+  margin: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 58;
+  /* Transparent film: colour lives in the rim, the centre stays see-through. */
+  background: radial-gradient(
+      circle at 32% 27%,
+      rgba(255, 255, 255, 0.85) 0%,
+      rgba(255, 255, 255, 0.18) 16%,
+      rgba(255, 255, 255, 0) 38%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(255, 255, 255, 0) 52%,
+      rgba(175, 230, 255, 0.3) 74%,
+      rgba(255, 205, 245, 0.42) 88%,
+      rgba(230, 255, 240, 0.7) 100%
+    );
+  box-shadow:
+    inset 0 0 4px rgba(255, 255, 255, 0.55),
+    0 0 5px rgba(200, 240, 255, 0.35);
+  will-change: transform, opacity;
+  animation: soap-bubble-float var(--bubble-dur, 1100ms)
+    cubic-bezier(0.22, 0.7, 0.3, 1) var(--bubble-delay, 0ms) forwards;
+}
+
+.soap-bubble::after {
+  content: "";
+  position: absolute;
+  left: 24%;
+  top: 20%;
+  width: 24%;
+  height: 17%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  transform: rotate(-20deg);
+}
+
+@keyframes soap-bubble-float {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  14% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(var(--bubble-scale, 1));
+  }
+  55% {
+    opacity: 0.9;
+    transform: translate(
+        calc(-50% + var(--bubble-dx, 0px) * 0.6),
+        calc(-50% + var(--bubble-dy, -40px) * 0.6)
+      )
+      scale(calc(var(--bubble-scale, 1) * 1.04));
+  }
+  88% {
+    opacity: 0.7;
+    transform: translate(
+        calc(-50% + var(--bubble-dx, 0px)),
+        calc(-50% + var(--bubble-dy, -40px))
+      )
+      scale(calc(var(--bubble-scale, 1) * 1.1));
+  }
+  /* Pop. */
+  100% {
+    opacity: 0;
+    transform: translate(
+        calc(-50% + var(--bubble-dx, 0px)),
+        calc(-50% + var(--bubble-dy, -40px))
+      )
+      scale(calc(var(--bubble-scale, 1) * 1.5));
+  }
+}
+
+.cell-icon {
+  position: absolute;
+  width: 84px;
+  height: 98px;
+  margin: -54px 0 0 -42px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+  transition: opacity 0.25s ease, transform 0.28s ease-out;
+  transform: translate(0, 0) scale(1);
+}
+
+/* Back layer: black circle @ 50% opacity */
+.cell-icon-plate {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  /* 20% larger than the original 64px */
+  width: 77px;
+  height: 77px;
+  margin: 0;
+  box-sizing: border-box;
+  border-radius: 50%;
+  /* darker circle (was 50% black) */
+  background: rgba(0, 0, 0, 0.72);
+  /* 1px white outline, softened (blurred) edge */
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  /* blur the outline + small white glow around the circle */
+  box-shadow:
+    0 0 2px 0 rgba(255, 255, 255, 0.7),
+    inset 0 0 2px 0 rgba(255, 255, 255, 0.45),
+    0 0 10px 3px rgba(255, 255, 255, 0.5),
+    0 0 22px 7px rgba(255, 255, 255, 0.3);
+  /* frosted blur of the picture behind the circle (20px + 30%) */
+  -webkit-backdrop-filter: blur(var(--plate-blur, 26px));
+  backdrop-filter: blur(var(--plate-blur, 26px));
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Middle: SKU icon above the number */
+.cell-icon-sku {
+  position: relative;
+  z-index: 2;
+  width: 58px;
+  height: auto;
+  margin-top: 0;
+  object-fit: contain;
+  pointer-events: none;
+  display: block;
+  order: 1;
+}
+
+/* Front: number below icon, tucked slightly up onto it */
+.cell-icon-label {
+  position: relative;
+  z-index: 3;
+  order: 2;
+  margin-top: -18px;
+  font-size: 19.2pt;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  -webkit-text-stroke: 3px #000;
+  paint-order: stroke fill;
+  text-shadow: 0 2px 0 #000;
+  pointer-events: none;
+}
+
+.cell-icon.is-fading {
+  opacity: 0;
+  transform: translate(0, 0) scale(1.3);
+  pointer-events: none;
+}
+
+.cell-icon.is-gone {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.reward-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6%;
+  background: rgba(28, 30, 34, 0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s ease, background 0.45s ease;
+  z-index: 12;
+  cursor: pointer;
+}
+
+.reward-screen.is-visible {
+  background: rgba(28, 30, 34, 0.96);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.reward-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(24px, 5vh, 40px);
+}
+
+.reward-title {
+  margin: 0 0 clamp(8px, 2vh, 16px);
+  text-align: center;
+  font-size: calc(clamp(1.35rem, 4.8vw, 2.15rem) + 20pt);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  transform: translateY(-56px);
+  background: linear-gradient(180deg, #ffe566 0%, #ffb020 55%, #f08a00 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(120, 60, 0, 0.35));
+}
+
+.reward-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(36px, 10vw, 72px);
+}
+
+.reward-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reward-icon {
+  width: clamp(42px, 9vw, 64px);
+  height: clamp(42px, 9vw, 64px);
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.45));
+}
+
+.reward-amount {
+  color: #fff;
+  font-size: clamp(1.45rem, 5vw, 2.35rem);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.reward-continue {
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%);
+  margin: 0;
+  color: #ffd54a;
+  font-size: clamp(0.95rem, 3.2vw, 1.35rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.85),
+    0 0 36px rgba(255, 230, 140, 0.55);
+  animation: reward-continue-pulse 1.6s ease-in-out infinite;
+}
+
+.reward-continue::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 160%;
+  height: 180%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes reward-continue-pulse {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-2px);
+  }
+}
+
+/* Confetti rains over the finished scene, above the reward overlay. */
+.confetti-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 13;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -6%;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: confetti-fall var(--fall-dur, 2200ms) linear
+    var(--fall-delay, 0ms) forwards;
+}
+
+.confetti-piece i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--confetti-color, #ffd54a);
+  border-radius: var(--confetti-radius, 2px);
+  animation: confetti-flutter var(--spin-dur, 700ms) linear infinite;
+}
+
+@keyframes confetti-fall {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  6% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift, 0px), var(--fall-dist, 120vh));
+  }
+}
+
+@keyframes confetti-flutter {
+  0% {
+    transform: rotate(0deg) scaleX(1);
+  }
+  50% {
+    transform: rotate(180deg) scaleX(0.3);
+  }
+  100% {
+    transform: rotate(360deg) scaleX(1);
+  }
+}
+
+.celebrate-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.celebrate-layer.is-active {
+  opacity: 1;
+}
+
+.celebrate-glow {
+  position: absolute;
+  inset: auto;
+  border-radius: 42% 48% 38% 44%;
+  background: radial-gradient(
+      ellipse at 50% 42%,
+      rgba(255, 248, 210, 0.28) 0%,
+      rgba(255, 220, 130, 0.1) 42%,
+      rgba(255, 255, 255, 0) 70%
+    ),
+    radial-gradient(
+      circle at 30% 55%,
+      rgba(255, 255, 255, 0.12) 0%,
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 72% 40%,
+      rgba(255, 240, 180, 0.12) 0%,
+      transparent 48%
+    );
+  animation: celebrate-glow-pulse 1.2s ease-in-out infinite alternate;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+@keyframes celebrate-glow-pulse {
+  from {
+    opacity: 0.4;
+    transform: scale(0.99);
+  }
+  to {
+    opacity: 0.75;
+    transform: scale(1.02);
+  }
+}
+
+.celebrate-sparkle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity, filter;
+  animation: celebrate-sparkle-pop var(--spark-dur, 1080ms) ease-in-out
+    var(--spark-delay, 0ms) infinite;
+  mix-blend-mode: screen;
+}
+
+/* Thin 4-point star */
+.celebrate-sparkle.is-star {
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 248, 210, 0.85) 22%,
+    rgba(255, 220, 120, 0.12) 48%,
+    transparent 64%
+  );
+  clip-path: polygon(
+    50% 0%,
+    54% 42%,
+    100% 50%,
+    54% 58%,
+    50% 100%,
+    46% 58%,
+    0% 50%,
+    46% 42%
+  );
+  filter: drop-shadow(0 0 2px rgba(255, 245, 190, 0.9))
+    drop-shadow(0 0 6px rgba(255, 220, 120, 0.45));
+}
+
+/* Soft cross glint */
+.celebrate-sparkle.is-glint {
+  background:
+    linear-gradient(
+      90deg,
+      transparent 46%,
+      rgba(255, 255, 255, 0.95) 50%,
+      transparent 54%
+    ),
+    linear-gradient(
+      0deg,
+      transparent 46%,
+      rgba(255, 250, 220, 0.9) 50%,
+      transparent 54%
+    ),
+    radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.9) 0%,
+      rgba(255, 230, 150, 0.35) 30%,
+      transparent 58%
+    );
+  border-radius: 50%;
+  filter: drop-shadow(0 0 3px rgba(255, 240, 170, 0.75));
+}
+
+/* Tiny mote */
+.celebrate-sparkle.is-twinkle {
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 240, 180, 0.55) 40%,
+    transparent 72%
+  );
+  border-radius: 50%;
+  filter: drop-shadow(0 0 2px rgba(255, 235, 160, 0.7));
+}
+
+@keyframes celebrate-sparkle-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.35)
+      rotate(var(--spark-rot, 0deg));
+  }
+  18% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(1)
+      rotate(calc(var(--spark-rot, 0deg) + 6deg));
+  }
+  42% {
+    opacity: 0.55;
+    transform: translate(-50%, -51%) scale(0.7)
+      rotate(calc(var(--spark-rot, 0deg) - 2deg));
+  }
+  68% {
+    opacity: 1;
+    transform: translate(-50%, -51%) scale(1.05)
+      rotate(calc(var(--spark-rot, 0deg) + 4deg));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -54%) scale(0.3)
+      rotate(calc(var(--spark-rot, 0deg) - 8deg));
+  }
+}
