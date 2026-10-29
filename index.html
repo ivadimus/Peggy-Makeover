@@ -1373,8 +1373,65 @@ body {
   }
 }
 
+/* Bright star that rides with a pink puff so the powder reads as magical. */
+.magic-spark {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  margin: 0;
+  opacity: 0;
+  background: #fff;
+  clip-path: polygon(
+    50% 0%,
+    62% 38%,
+    100% 50%,
+    62% 62%,
+    50% 100%,
+    38% 62%,
+    0% 50%,
+    38% 38%
+  );
+  filter: drop-shadow(0 0 3px rgba(255, 228, 240, 0.95));
+  animation: magic-spark var(--puff-dur, 700ms) ease-out
+    var(--puff-delay, 0ms) forwards;
+}
+
+.magic-spark.is-gold {
+  background: #ffe7a8;
+  filter: drop-shadow(0 0 3px rgba(255, 210, 140, 0.95));
+}
+
+.magic-spark.is-pink {
+  background: #ffd4e8;
+  filter: drop-shadow(0 0 3px rgba(255, 170, 205, 0.95));
+}
+
+@keyframes magic-spark {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.15) rotate(0deg);
+  }
+  22% {
+    opacity: 1;
+    transform: translate(
+        calc(-50% + var(--puff-dx, 0px) * 0.28),
+        calc(-50% + var(--puff-dy, -24px) * 0.28)
+      )
+      scale(1.1) rotate(16deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+        calc(-50% + var(--puff-dx, 0px)),
+        calc(-50% + var(--puff-dy, -24px))
+      )
+      scale(0.28) rotate(-14deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .dust-puff {
+  .dust-puff,
+  .magic-spark {
     animation-duration: 1ms;
   }
 }
@@ -1460,7 +1517,7 @@ body {
         </div>
         <div class="stage" id="stage">
           <div class="play-area" id="play-area">
-            <img class="state-b" id="state-b" src="assets/Scene1-BG1.png" alt="State B" draggable="false" />
+            <img class="state-b" id="state-b" src="assets/Scene1-BG1.webp" alt="State B" draggable="false" />
             <svg class="voronoi-layer" id="voronoi-layer" aria-hidden="true"></svg>
             <div class="vfx-layer" id="vfx-layer" aria-hidden="true"></div>
             <div class="icons-layer" id="icons-layer"></div>
@@ -1469,20 +1526,20 @@ body {
           <div class="hud-layer" id="hud-layer">
             <div class="hud-top-wrap">
               <!-- Same box as the old combined header: title on top, milestones panel under it. -->
-              <img class="hud-title" src="assets/Header.png" alt="Peggy Makeover" draggable="false" />
-              <img class="hud-milestones" id="hud-milestones" src="assets/Milestones_Bar1.png" alt="" draggable="false" />
+              <img class="hud-title" src="assets/Header.webp" alt="Peggy Makeover" draggable="false" />
+              <img class="hud-milestones" id="hud-milestones" src="assets/Milestones_Bar1.webp" alt="" draggable="false" />
             </div>
             <button type="button" class="hud-info" aria-label="Info">
-              <img src="assets/info_btn_LS.png" alt="" draggable="false" />
+              <img src="assets/info_btn_LS.webp" alt="" draggable="false" />
             </button>
-            <img class="hud-meter" src="assets/EventSkuMeter.png" alt="" draggable="false" />
+            <img class="hud-meter" src="assets/EventSkuMeter.webp" alt="" draggable="false" />
             <span class="hud-top-count" id="hud-top-count">100</span>
             <!-- "How to play?" screen: dark layer + picture; the Close button stays on top of it. -->
             <div class="info-overlay" id="info-overlay" role="dialog" aria-label="How to play" hidden>
-              <img class="info-screen" src="assets/info_screen.png" alt="How to play" draggable="false" />
+              <img class="info-screen" src="assets/info_screen.webp" alt="How to play" draggable="false" />
             </div>
             <button type="button" class="hud-close" aria-label="Close">
-              <img src="assets/close_btn_LS.png" alt="" draggable="false" />
+              <img src="assets/close_btn_LS.webp" alt="" draggable="false" />
             </button>
           </div>
           <!-- End of the only scene: Makeover Complete reward. A tap restarts the scene. -->
@@ -2018,7 +2075,7 @@ body {
   const splash = document.getElementById("splash");
   const whiteout = document.getElementById("whiteout");
   // Load the result picture right away so it is ready when the scene ends.
-  rewardPopup.src = "assets/MakeOver_Reward_popup_INT.png";
+  rewardPopup.src = "assets/MakeOver_Reward_popup_INT.webp";
   const replayButton = document.getElementById("replay-button");
   const stateBImg = document.getElementById("state-b");
   const milestonesImg = document.getElementById("hud-milestones");
@@ -2057,9 +2114,9 @@ body {
   /** The only scene in this prototype. */
   const SCENES = [
     {
-      dirty: "assets/Scene1-BG2.png",
-      clean: "assets/Scene1-BG1.png",
-      milestones: "assets/Milestones_Bar1.png",
+      dirty: "assets/Scene1-BG2.webp",
+      clean: "assets/Scene1-BG1.webp",
+      milestones: "assets/Milestones_Bar1.webp",
       coins: 3520,
       gems: 352,
     },
@@ -2075,7 +2132,7 @@ body {
 
   let sceneIndex = 0;
   let stateAUrl = SCENES[0].dirty;
-  const iconUrl = "assets/SKU.png";
+  const iconUrl = "assets/SKU.webp";
 
   let pieceCount = GAME_PIECES[gameIndex];
   let clearedCount = 0;
@@ -2137,7 +2194,7 @@ body {
    * each piece, so the icon brush itself lifts off and starts cleaning.
    * (To use a separate picture, put e.g. "assets/brush.png" here.)
    */
-  const BRUSH_IMAGE_URL = "assets/SKU.png";
+  const BRUSH_IMAGE_URL = "assets/SKU.webp";
   const brushImage = new Image();
   brushImage.decoding = "async";
   brushImage.src = BRUSH_IMAGE_URL;
@@ -2145,6 +2202,32 @@ body {
   /**
    * Soft dust cloud: puffs up, drifts away (pushed by the brush) and fades.
    * opts.dx / opts.dy = drift direction, opts.size, opts.delay, opts.duration.
+   */
+  /** Small star that drifts with the same push as the pink powder. */
+  function spawnMagicSpark(layer, x, y, opts) {
+    const o = opts || {};
+    const size = o.size || 7 + Math.random() * 9;
+    const el = document.createElement("span");
+    const tint = Math.random();
+    el.className =
+      "magic-spark" + (tint < 0.34 ? " is-gold" : tint < 0.67 ? " is-pink" : "");
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.style.setProperty("--puff-dx", `${(o.dx || 0).toFixed(1)}px`);
+    el.style.setProperty("--puff-dy", `${(o.dy || -24).toFixed(1)}px`);
+    const dur = o.duration || 520 + Math.random() * 380;
+    el.style.setProperty("--puff-dur", `${dur}ms`);
+    el.style.setProperty("--puff-delay", `${o.delay || 0}ms`);
+    layer.appendChild(el);
+    window.setTimeout(() => el.remove(), dur + (o.delay || 0) + 80);
+  }
+
+  /**
+   * Soft dust cloud: puffs up, drifts away (pushed by the brush) and fades.
+   * opts.dx / opts.dy = drift direction, opts.size, opts.delay, opts.duration.
+   * A sparkle rides with the puff so the powder looks magical.
    */
   function spawnDustPuff(layer, x, y, opts) {
     const o = opts || {};
@@ -2165,6 +2248,19 @@ body {
     el.style.setProperty("--puff-delay", `${o.delay || 0}ms`);
     layer.appendChild(el);
     window.setTimeout(() => el.remove(), dur + (o.delay || 0) + 80);
+    const dx = o.dx || 0;
+    const dy = (o.dy || 0) - 14;
+    spawnMagicSpark(
+      layer,
+      x + (Math.random() - 0.5) * size * 0.7,
+      y + (Math.random() - 0.5) * size * 0.7,
+      {
+        dx: dx * (0.65 + Math.random() * 0.6),
+        dy: dy * (0.65 + Math.random() * 0.6),
+        delay: (o.delay || 0) + Math.random() * 90,
+        duration: dur * 0.85,
+      }
+    );
   }
 
   /** Cloud of dust bursting outward, used on tap and when a piece is finished. */
@@ -3721,7 +3817,7 @@ body {
       if (now - lastPuffAt < 45) return;
       lastPuffAt = now;
       const atTurn = p.turn > 0.85;
-      const count = atTurn ? 2 : 1 + (Math.random() < 0.5 ? 1 : 0);
+      const count = atTurn ? 4 : 2 + (Math.random() < 0.5 ? 2 : 0);
       for (let i = 0; i < count; i++) {
         const ahead = p.dir * (stampRadius * (0.5 + Math.random() * 0.7));
         const spreadY = (Math.random() - 0.5) * stampRadius * 1.3;
@@ -3832,7 +3928,7 @@ body {
           vfxLayer,
           (area.minX + area.maxX) / 2,
           (area.minY + area.maxY) / 2,
-          7,
+          14,
           Math.min(area.width, area.height) * 0.35
         );
         playSpongeSparkles(bbox);
@@ -4017,7 +4113,7 @@ body {
       const bbox = polygonBBox(poly);
       const ox = tapAt ? tapAt.x : (bbox.minX + bbox.maxX) / 2;
       const oy = tapAt ? tapAt.y : (bbox.minY + bbox.maxY) / 2;
-      burstDustPuffs(vfxLayer, ox, oy, 4, 18);
+      burstDustPuffs(vfxLayer, ox, oy, 8, 18);
     }
 
     startBrushWipe(cellId, () => {
@@ -4107,7 +4203,7 @@ body {
 
   /** Feature end screen. Tap restarts the same scene. */
   function showRewardScreen() {
-    rewardPopup.src = "assets/MakeOver_Reward_popup_INT.png";
+    rewardPopup.src = "assets/MakeOver_Reward_popup_INT.webp";
     rewardScreen.classList.remove("is-makeover", "is-replay");
     rewardScreen.hidden = false;
     rewardOpen = true;
